@@ -68,6 +68,7 @@ RUN python3 -m venv /opt/ghost-venv && \
       colorama beautifulsoup4 defusedxml pyparsing \
       "psycopg[binary]" mysql-connector-python \
       ldapdomaindump bloodhound smbmap && \
+    /opt/ghost-venv/bin/pip install --no-cache-dir -r "${DIRSEARCH_DIR}/requirements.txt" && \
     ln -s /opt/ghost-venv/bin/ldapdomaindump /usr/local/bin/ldapdomaindump || true && \
     ln -s /opt/ghost-venv/bin/bloodhound   /usr/local/bin/bloodhound-python || true && \
     ln -s /opt/ghost-venv/bin/smbmap       /usr/local/bin/smbmap || true
@@ -261,3 +262,4 @@ HEALTHCHECK --interval=1h --timeout=10s --start-period=20s --retries=3 \
 STOPSIGNAL SIGINT
 ENTRYPOINT ["/usr/bin/tini","--"]
 CMD ["/bin/bash"]
+
