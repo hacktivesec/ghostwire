@@ -92,13 +92,17 @@ done
 echo "saved to ${ARTIFACTS}"
 SH
 
-# update-seclists: fast-forward only
+# update-seclists: shallow re-clone (works without .git)
 RUN cat > /usr/local/bin/update-seclists <<'SH' && chmod +x /usr/local/bin/update-seclists
 #!/usr/bin/env bash
 set -euo pipefail
-cd "${SECLISTS}"
-git fetch --depth=1 origin || true
-git pull --ff-only || echo "no fast-forward update available"
+SECLISTS="${SECLISTS:-/opt/seclists}"
+tmp="$(mktemp -d)"
+echo "[gw] refreshing SecLists..."
+git clone --depth=1 https://github.com/danielmiessler/SecLists "$tmp"
+rsync -a --delete "$tmp"/ "$SECLISTS"/
+rm -rf "$tmp"
+echo "[gw] SecLists refreshed."
 SH
 
 # px: run any command via SOCKS5 (DNS resolved on proxy)
@@ -122,9 +126,24 @@ PC
 
 # QoL wrappers + session logging
 RUN printf '#!/usr/bin/env bash\nexec px curl "$@"\n' > /usr/local/bin/pxcurl && chmod +x /usr/local/bin/pxcurl && \
-    printf '#!/usr/bin/env bash\nexec px wget "$@"\n' > /usr/local/bin/pxwget && chmod +x /usr/local/bin/pxwget && \
-    printf '#!/usr/bin/env bash\nexec \"$1\" \"${@:2}\" | tee \"/shared/${1##*/}_$(date +%%s).log\"\n' > /usr/local/bin/out && chmod +x /usr/local/bin/out && \
-    cat > /usr/local/bin/session-log <<'SH' && chmod +x /usr/local/bin/session-log
+    printf '#!/usr/bin/env bash\nexec px wget "$@"\n' > /usr/local/bin/pxwget && chmod +x /usr/local/bin/pxwget
+
+# out: run a command and tee to /shared/<cmd>_<ts>.log (with usage + correct exit)
+RUN cat > /usr/local/bin/out <<'SH' && chmod +x /usr/local/bin/out
+#!/usr/bin/env bash
+set -euo pipefail
+if [ $# -eq 0 ]; then
+  echo "usage: out <command> [args...]" >&2
+  exit 2
+fi
+cmd="$1"; shift
+log="${ARTIFACTS:-/shared}/$(basename "$cmd")_$(date +%s).log"
+( "$cmd" "$@" ; exit $? ) 2>&1 | tee "$log"
+exit ${PIPESTATUS[0]}
+SH
+
+# session-log: start bash with persistent history in /shared/history
+RUN cat > /usr/local/bin/session-log <<'SH' && chmod +x /usr/local/bin/session-log
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p /shared/history
@@ -171,7 +190,7 @@ if [ -n "${SSH_AUTH_SOCK:-}" ] && [ -S "${SSH_AUTH_SOCK}" ]; then
   echo "[gw] SSH agent socket mounted: $SSH_AUTH_SOCK"
   exit 0
 fi
-echo "[gw] No SSH agent. Run with: -e SSH_AUTH_SOCK=/ssh-agent -v \"\$SSH_AUTH_SOCK:/ssh-agent\"" >&2
+echo "[gw] No SSH agent. Run with: -e SSH_AUTH_SOCK=/ssh-agent -v \"$SSH_AUTH_SOCK:/ssh-agent\"" >&2
 exit 1
 SH
 
@@ -184,12 +203,31 @@ if command -v nvidia-smi >/dev/null 2>&1; then
   echo "[gw] nvidia-smi:"
   nvidia-smi || true
 else
-  echo "[gw] nvidia-smi not found. For NVIDIA: install nvidia-container-toolkit on host and run with --gpus all"
+  echo "[gw] nvidia-smi not found. For NVIDIA: install nvidia-container-toolkit on host and run --gpus all"
 fi
 SH
 
+# ---- QoL: aliases + prompt (bash-only guard) ----
+RUN ln -s /usr/bin/fdfind /usr/local/bin/fd || true && \
+    ln -s /usr/bin/batcat /usr/local/bin/bat || true && \
+    cat > /etc/profile.d/ghostwire.sh <<'PSH' && chmod 0644 /etc/profile.d/ghostwire.sh
+[ -n "$BASH_VERSION" ] || return 0
+export SECLISTS=/opt/seclists
+export ARTIFACTS=/shared
+alias ll='ls -alF --color=auto'
+alias bat='bat --paging=never'
+alias fd='fdfind'
+export HISTTIMEFORMAT="%F %T "
+export HISTCONTROL=ignorespace:erasedups
+GHOST_LABEL=${GHOST_LABEL:-security}
+ghost_prompt(){ local r=$?; if [ $r -eq 0 ]; then GS="\[\e[1;32m\]✔"; else GS="\[\e[1;31m\]✘"; fi; export GS; }
+PROMPT_COMMAND=ghost_prompt
+PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;32m\]ghostwire\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GHOST_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "
+if [ -n "${SOCKS5_HOST:-}" ]; then echo "[px] SOCKS5 target: ${SOCKS5_HOST}:${SOCKS5_PORT:-1080}"; fi
+PSH
+
 # ---- CRLF guard for scripts ----
-RUN perl -i -pe 's/\r\n/\n/g' \
+RUN sed -i 's/\r$//' \
   /usr/local/bin/dirsearch \
   /usr/local/bin/px \
   /usr/local/bin/savehere \
@@ -210,25 +248,6 @@ RUN groupadd -r ghost && useradd -m -g ghost -s /bin/bash ghost && \
     chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools /opt/ghost-venv "${SECLISTS}" "${DIRSEARCH_DIR}" && \
     printf 'ghost ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/ghost && \
     chmod 0440 /etc/sudoers.d/ghost
-
-# ---- QoL: aliases + prompt (bash-only guard) ----
-RUN ln -s /usr/bin/fdfind /usr/local/bin/fd || true && \
-    ln -s /usr/bin/batcat /usr/local/bin/bat || true && \
-    cat > /etc/profile.d/ghostwire.sh <<'PSH' && chmod 0644 /etc/profile.d/ghostwire.sh
-[ -n "$BASH_VERSION" ] || return 0
-export SECLISTS=/opt/seclists
-export ARTIFACTS=/shared
-alias ll='ls -alF --color=auto'
-alias bat='bat --paging=never'
-alias fd='fdfind'
-export HISTTIMEFORMAT="%F %T "
-export HISTCONTROL=ignorespace:erasedups
-GHOST_LABEL=${GHOST_LABEL:-security}
-ghost_prompt(){ local r=$?; if [ $r -eq 0 ]; then GS="\[\e[1;32m\]✔"; else GS="\[\e[1;31m\]✘"; fi; export GS; }
-PROMPT_COMMAND=ghost_prompt
-PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;32m\]ghostwire\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GHOST_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "
-if [ -n "${SOCKS5_HOST:-}" ]; then echo "[px] SOCKS5 target: ${SOCKS5_HOST}:${SOCKS5_PORT:-1080}"; fi
-PSH
 
 USER ghost
 WORKDIR /work
