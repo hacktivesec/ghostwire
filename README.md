@@ -166,7 +166,7 @@ out /bin/uname -a
 
 ---
 
-## 🧪 Quick self-test (safe targets only)
+## 🧪 Quick self-test 
 
 ```bash
 # inside the container
