@@ -299,7 +299,7 @@ px curl -I https://example.com
 Docker’s embedded DNS resolves the `$JUMP` container name on the same user-defined network. Traffic stays behind NAT.
 
 ---
-> **Status:** This project is in **continuous evolution** — we’re steadily **dockerizing** and **de-bloating** everything we can to keep it fast, portable, and practical for **red teamers** and **pentesters**. It’s designed to run cleanly on **servers** (VMs or Kubernetes) so you can **scale** jobs, keep **load off your host**, and **standardize** tooling across the team and environments.
+> **Status:** This project is in **continuous evolution** we’re steadily **dockerizing** and **de-bloating** everything we can to keep it fast, portable, and practical for **red teamers** and **pentesters**. It’s designed to run cleanly on **servers** (VMs or Kubernetes) so you can **scale** jobs, keep **load off your host**, and **standardize** tooling across the team and environments.
 
 ### Why containers for offensive tooling?
 - **Standardize**: same versions, same flags, same UX on every host.
