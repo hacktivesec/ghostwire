@@ -7,7 +7,7 @@ LABEL org.opencontainers.image.title="ghostwire" \
       org.opencontainers.image.description="Ultra-lean web/network/AD toolkit + hashcat. SOCKS-ready. SecLists baked. dirsearch via venv. Minimal bloat." \
       org.opencontainers.image.vendor="ghostwire" \
       org.opencontainers.image.version="dev" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="CC0-1.0"
 
 ARG SECLISTS_SHA=HEAD
 ARG DIRSEARCH_SHA=HEAD
@@ -262,4 +262,5 @@ HEALTHCHECK --interval=1h --timeout=10s --start-period=20s --retries=3 \
 STOPSIGNAL SIGINT
 ENTRYPOINT ["/usr/bin/tini","--"]
 CMD ["/bin/bash"]
+
 
