@@ -1,4 +1,4 @@
-![Ghostwire](https://github.com/hacktivesec/ghostwire/blob/main/Ghostwire.png "Ghostwire")
+<img src="https://github.com/hacktivesec/ghostwire/blob/main/Ghostwire.png" alt="Ghostwire" width="50%">
 
 # ghostwire
 
