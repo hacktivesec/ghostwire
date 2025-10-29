@@ -1,6 +1,34 @@
 # syntax=docker/dockerfile:1
 
+#######################################################################
+# Make BASE_IMAGE available to any FROM (must be before the first FROM)
+#######################################################################
 ARG BASE_IMAGE=ubuntu:24.04
+
+# --- Stage 0: build bulk_extractor from source ---
+FROM ubuntu:24.04 AS bulkbuilder
+ENV DEBIAN_FRONTEND=noninteractive
+RUN set -eux; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+    ca-certificates curl \
+    build-essential autoconf automake libtool pkg-config git \
+    python3 flex \
+    libewf-dev libafflib-dev libtre-dev zlib1g-dev libssl-dev \
+    libexpat1-dev libpcap-dev libsqlite3-dev libre2-dev libpcre3-dev; \
+  update-ca-certificates; \
+  git clone --depth=1 --recurse-submodules \
+    https://github.com/simsong/bulk_extractor.git /src/bulk_extractor; \
+  cd /src/bulk_extractor; \
+  ./bootstrap.sh; \
+  ./configure; \
+  make -j"$(nproc)"; \
+  make install DESTDIR=/opt/be-install
+
+
+############################
+# Stage 1: main image
+############################
 FROM ${BASE_IMAGE} AS base
 
 LABEL org.opencontainers.image.title="ghostwire" \
@@ -50,7 +78,7 @@ RUN set -eux; \
     if [ "${SECLISTS_SHA}" != "HEAD" ]; then cd "${SECLISTS}" && git fetch --depth=1 origin "${SECLISTS_SHA}" && git checkout "${SECLISTS_SHA}"; fi; \
     rm -rf "${SECLISTS}/.git" || true
 
-# (keep your venv + other pip installs as-is, just remove the SecretFinder line)
+# ---- Python venv (base toolset) ----
 RUN python3 -m venv /opt/ghost-venv && \
     /opt/ghost-venv/bin/python -m pip install --upgrade pip "setuptools<81" wheel && \
     /opt/ghost-venv/bin/pip install --no-cache-dir \
@@ -60,13 +88,12 @@ RUN python3 -m venv /opt/ghost-venv && \
       ldapdomaindump bloodhound smbmap sublist3r "sslyze==6.2.0" \
     && true
 
-# Install SecretFinder (repo is not a package; clone + install requirements + wrapper)
+# ---- SecretFinder (repo is not a pip package; clone + reqs + wrapper) ----
 RUN git clone --depth=1 https://github.com/m4ll0k/SecretFinder.git /opt/secretfinder && \
     /opt/ghost-venv/bin/pip install --no-cache-dir -r /opt/secretfinder/requirements.txt && \
     printf '#!/bin/sh\nexec /opt/ghost-venv/bin/python /opt/secretfinder/SecretFinder.py "$@"\n' \
       > /usr/local/bin/secretfinder && \
     chmod +x /usr/local/bin/secretfinder
-
 
 # ---- PATH shims to venv CLIs ----
 RUN set -eux; \
@@ -272,7 +299,7 @@ CMD ["/bin/bash"]
 # become root for the added installs
 USER root
 
-# ---- APT: network/service, wireless, forensics, apktool, dirb, wpscan deps ----
+# ---- APT: network/service, wireless, forensics, apktool, dirb, wpscan deps (NO apt bulk-extractor here) ----
 RUN set -eux; \
   mkdir -p /usr/share/man/man1; \
   apt-get update; \
@@ -322,16 +349,8 @@ RUN set -eux; \
   rm -f /tmp/jadx.zip; \
   rm -rf /var/lib/apt/lists/*
 
-# ---- bulk_extractor (from source) ----
-RUN set -eux; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends \
-    build-essential autoconf automake libtool pkg-config \
-    libewf-dev libafflib-dev libtre-dev zlib1g-dev libssl-dev git; \
-  git clone --depth=1 https://github.com/simsong/bulk_extractor.git /tmp/bulk_extractor; \
-  cd /tmp/bulk_extractor && ./bootstrap.sh && ./configure && make -j"$(nproc)" && make install; \
-  cd / && rm -rf /tmp/bulk_extractor; \
-  rm -rf /var/lib/apt/lists/*
+# ---- bulk_extractor: bring in binaries from builder stage ----
+COPY --from=bulkbuilder /opt/be-install/usr/local/ /usr/local/
 
 # ---- Post-Exploitation repos: PowerSploit, Empire (clone only) ----
 RUN set -eux; \
@@ -347,12 +366,14 @@ RUN set -eux; \
   git clone --depth=1 https://github.com/MobSF/Mobile-Security-Framework-MobSF /opt/mobsf || true; \
   rm -rf /opt/mobsf/.git || true
 
-# ---- Python tools: split NetExec and ScoutSuite into dedicated venvs (no anchorecli) ----
+# ---- Python tools into the existing venv (more) + NetExec in dedicated venv ----
 RUN set -eux; \
   apt-get update; \
-  apt-get install -y --no-install-recommends python3-dev; \
+  # need a compiler to build arc4 (pulled via aardwolf) + python headers
+  apt-get install -y --no-install-recommends python3-dev build-essential; \
+  # ensure builds find a GCC named exactly as some packages expect
+  command -v x86_64-linux-gnu-gcc >/dev/null 2>&1 || ln -s /usr/bin/gcc /usr/bin/x86_64-linux-gnu-gcc; \
   \
-  # --- main venv ---
   /opt/ghost-venv/bin/pip install --no-cache-dir \
     pypykatz \
     arjun commix \
@@ -360,20 +381,17 @@ RUN set -eux; \
     objection frida-tools \
   ; \
   \
-  # --- NetExec in its own venv (needs newer python-dateutil) ---
   python3 -m venv /opt/nxc-venv; \
   /opt/nxc-venv/bin/pip install --upgrade pip; \
-  /opt/nxc-venv/bin/pip install --no-cache-dir 'git+https://github.com/Pennyw0rth/NetExec'; \
+  # ensure builds use gcc (avoids looking for non-existent triplet compilers)
+  CC=gcc CXX=g++ /opt/nxc-venv/bin/pip install --no-cache-dir \
+    'git+https://github.com/Pennyw0rth/NetExec'; \
   \
-  # --- ScoutSuite 5.14.0 in its own venv (needs old python-dateutil) ---
-  python3 -m venv /opt/scout-venv; \
-  /opt/scout-venv/bin/pip install --upgrade pip; \
-  /opt/scout-venv/bin/pip install --no-cache-dir 'python-dateutil<2.8.1,>=2.1' 'ScoutSuite==5.14.0'; \
-  \
-  apt-get purge -y --auto-remove python3-dev; \
+  # clean up build deps to keep image slim
+  apt-get purge -y --auto-remove python3-dev build-essential; \
   rm -rf /var/lib/apt/lists/*; \
   \
-  # ---- Expose CLIs via wrappers (properly escape "$@") ----
+  # expose extra venv CLIs via wrappers
   for n in pypykatz arjun commix volatility3 objection frida-ps; do \
     printf '%s\n' '#!/usr/bin/env bash' "exec /opt/ghost-venv/bin/${n} \"\$@\"" > "/usr/local/bin/${n}"; \
     chmod +x "/usr/local/bin/${n}"; \
@@ -382,18 +400,11 @@ RUN set -eux; \
   chmod +x /usr/local/bin/nxc; \
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/nxc-venv/bin/crackmapexec "$@"' > /usr/local/bin/crackmapexec; \
   chmod +x /usr/local/bin/crackmapexec; \
-  printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/scout-venv/bin/scout "$@"' > /usr/local/bin/scout; \
-  chmod +x /usr/local/bin/scout; \
-  \
   # volatility3 may ship as vol.py – provide a stable name too
   if [ -x /opt/ghost-venv/bin/vol.py ] && [ ! -e /usr/local/bin/volatility3 ]; then \
     printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/vol.py "$@"' > /usr/local/bin/volatility3; \
     chmod +x /usr/local/bin/volatility3; \
-  fi; \
-  \
-  # Re-assert the SecretFinder wrapper (in case anything overwrote it)
-  printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/python /opt/secretfinder/SecretFinder.py "$@"' > /usr/local/bin/secretfinder; \
-  chmod +x /usr/local/bin/secretfinder
+  fi
 
 # ---- Evil-WinRM + WPScan (Ruby gems) ----
 RUN set -eux; \
@@ -466,7 +477,7 @@ RUN set -eux; \
 
 # normalize ownership back to ghost for cloned dirs & venv
 RUN set -eux; \
-  chown -R ghost:ghost /opt/ghost-venv /opt/enum4linux /opt/joomscan /opt/jadx /opt/PowerSploit /opt/empire /opt/cloudmapper /opt/mobsf /opt/peass /opt/nxc-venv /opt/scout-venv || true
+  chown -R ghost:ghost /opt/ghost-venv /opt/enum4linux /opt/joomscan /opt/jadx /opt/PowerSploit /opt/empire /opt/cloudmapper /opt/mobsf /opt/peass || true
 
 # back to the original user
 USER ghost
