@@ -18,7 +18,7 @@ Bring your targets, scope, and a SOCKS pivot—ghostwire handles the rest.
 
 ### Core CLI
 
-* **Web**: `gobuster`, `nikto`, `sqlmap`, `wfuzz`, `whatweb`, `wafw00f`, `testssl.sh`
+* **Web**: `gobuster`, `nikto`, `sqlmap`, `wfuzz`, `whatweb`, `wafw00f`
 * **Network**: `nmap`, `masscan`, `dnsutils`, `iputils-ping`, `traceroute`, `netcat-openbsd`, `socat`, `tcpdump`, `iproute2`, `openssl`
 * **AD / Auth**: `python3-impacket` *(module entrypoints exposed as CLIs)*, `krb5-user`, `ldap-utils`, `smbclient`, `ldapdomaindump`, `bloodhound` *(venv; `bloodhound-python` alias)*, `smbmap`
 * **Cracking**: `hashcat` *(CPU OpenCL via POCL)*, `john`, `hydra`
