@@ -57,9 +57,9 @@ RUN apt-get update && \
       nano less bash-completion \
       python3 python3-pip python3-venv \
       # web (dirsearch removed)
-      gobuster nikto sqlmap wfuzz whatweb wafw00f testssl.sh \
+      gobuster nikto sqlmap whatweb wafw00f \
       # network
-      nmap masscan dnsutils iputils-ping traceroute netcat-openbsd socat tcpdump iproute2 openssl \
+      nmap dnsutils iputils-ping traceroute netcat-openbsd socat tcpdump iproute2 openssl \
       # AD/auth
       samba-common-bin krb5-user ldap-utils smbclient python3-impacket \
       # cracking
@@ -85,7 +85,7 @@ RUN python3 -m venv /opt/ghost-venv && \
       "httpx[socks]" httpx-ntlm requests requests-ntlm requests-toolbelt PySocks \
       jinja2 markupsafe cryptography cffi pyopenssl colorama beautifulsoup4 defusedxml pyparsing \
       "psycopg[binary]" mysql-connector-python \
-      ldapdomaindump bloodhound smbmap sublist3r "sslyze==6.2.0" \
+      ldapdomaindump bloodhound smbmap "sslyze==6.2.0" \
     && true
 
 # ---- SecretFinder (repo is not a pip package; clone + reqs + wrapper) ----
@@ -98,7 +98,7 @@ RUN git clone --depth=1 https://github.com/m4ll0k/SecretFinder.git /opt/secretfi
 # ---- PATH shims to venv CLIs ----
 RUN set -eux; \
   mkdir -p /usr/local/bin; \
-  for name in bloodhound bloodhound-python smbmap sublist3r sslyze ldapdomaindump; do \
+  for name in bloodhound bloodhound-python smbmap sslyze ldapdomaindump; do \
     tgt="$name"; src="$name"; [ "$name" = "bloodhound-python" ] && src="bloodhound"; \
     printf '%s\n' '#!/usr/bin/env bash' "exec /opt/ghost-venv/bin/${src} \"\$@\"" > "/usr/local/bin/${tgt}"; \
     chmod +x "/usr/local/bin/${tgt}"; \
@@ -263,7 +263,6 @@ RUN sed -i 's/\r$//' \
   /usr/local/bin/gw-ssh-agent-check \
   /usr/local/bin/gw-gpu-check \
   /usr/local/bin/secretfinder \
-  /usr/local/bin/sublist3r \
   /usr/local/bin/sslyze \
   /usr/local/bin/smbmap \
   /usr/local/bin/bloodhound \
@@ -305,15 +304,13 @@ RUN set -eux; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
     # Network & Service Exploitation
-    snmp onesixtyone ike-scan patator medusa \
+    snmp ike-scan patator \
     # Wireless
-    aircrack-ng reaver bully \
+    aircrack-ng reaver \
     # Stego & Forensics
     steghide libimage-exiftool-perl binwalk foremost \
     # Mobile (needs Java)
     apktool \
-    # Web extras
-    dirb \
     # WPScan deps
     libcurl4-openssl-dev \
   ; \
@@ -424,14 +421,10 @@ RUN set -eux; \
   go install github.com/ffuf/ffuf/v2@latest; \
   go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest; \
   go install github.com/jaeles-project/jaeles@latest; \
-  go install github.com/arminc/clair-scanner@latest || true; \
-  go install github.com/quay/clair/v4/cmd/clairctl@latest || true; \
   go install github.com/owasp-amass/amass/v4/...@latest; \
   go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest; \
   go install github.com/projectdiscovery/httpx/cmd/httpx@latest; \
-  go install github.com/projectdiscovery/naabu/v2/cmd/naabu@latest; \
   go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest; \
-  go install github.com/projectdiscovery/tlsx/cmd/tlsx@latest; \
   go install github.com/projectdiscovery/katana/cmd/katana@latest; \
   go install github.com/tomnomnom/waybackurls@latest; \
   go install github.com/tomnomnom/anew@latest; \
@@ -439,7 +432,6 @@ RUN set -eux; \
   go install github.com/sa7mon/s3scanner@latest; \
   go install github.com/ropnop/kerbrute@latest; \
   go install github.com/zricethezav/gitleaks/v8@latest; \
-  go install github.com/trufflesecurity/trufflehog/v3@latest || true; \
   apt-get purge -y --auto-remove golang-go; \
   rm -rf /var/lib/apt/lists/* /root/go /home/*/go || true
 
@@ -481,3 +473,4 @@ RUN set -eux; \
 
 # back to the original user
 USER ghost
+# (cleanup complete: removed dirb, wfuzz, testssl.sh, tlsx, sublist3r, masscan, naabu, trufflehog, onesixtyone, bully, clair-scanner, clairctl, medusa)
