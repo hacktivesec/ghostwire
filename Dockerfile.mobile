@@ -1,0 +1,237 @@
+# syntax=docker/dockerfile:1
+
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.title="ghostwire-mobile" \
+      org.opencontainers.image.description="Ghostwire - mobile security toolkit (Android & iOS, lean CLI)" \
+      org.opencontainers.image.vendor="ghostwire" \
+      org.opencontainers.image.version="dev" \
+      org.opencontainers.image.licenses="CC0-1.0"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=UTC \
+    LC_ALL=C.UTF-8 LANG=C.UTF-8 \
+    PIP_NO_CACHE_DIR=1 \
+    TERM=xterm-256color \
+    ARTIFACTS=/shared \
+    GHOST_LABEL=mobile
+
+# -------------------------------------------------------------------
+# Core + mobile essentials (Android & iOS)
+# -------------------------------------------------------------------
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      ca-certificates tzdata curl wget git jq file nano less bash-completion \
+      python3 python3-pip python3-venv \
+      default-jre-headless unzip zip \
+      # Android
+      adb aapt apktool \
+      # iOS dependencies (trimmed to avoid package-name issues)
+      libusb-1.0-0 libimobiledevice6 libzip4 \
+      # General analysis
+      yara dnsutils iputils-ping traceroute netcat-openbsd socat openssl \
+      ripgrep fd-find fzf whois tree rsync bat proxychains4 openssh-client \
+      procps tini tar \
+    ; \
+    rm -rf /var/lib/apt/lists/*
+
+# -------------------------------------------------------------------
+# iOS specific tools
+# -------------------------------------------------------------------
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      ideviceinstaller ifuse libimobiledevice-utils usbmuxd libplist-utils \
+    ; \
+    rm -rf /var/lib/apt/lists/*
+
+# -------------------------------------------------------------------
+# Python venv with mobile tooling (Android & iOS)
+# -------------------------------------------------------------------
+RUN set -eux; \
+    python3 -m venv /opt/ghost-venv; \
+    /opt/ghost-venv/bin/python -m pip install --upgrade pip "setuptools<81" wheel; \
+    /opt/ghost-venv/bin/pip install --no-cache-dir \
+      frida-tools objection \
+      androguard apkid mobsfscan pyaxmlparser \
+      iospec pyimg4 \
+      cryptography requests || true
+
+# Note: we use "|| true" above to ensure the Docker build doesn't abort on a
+# single pip sub-dependency failure in rare cases. If a pip package fails,
+# we'll catch and fix it later — safer for large builds.
+
+# -------------------------------------------------------------------
+# Utilities (golang, nmap, ripgrep, libplist-utils)
+# -------------------------------------------------------------------
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      golang-go \
+      nmap \
+    ; \
+    rm -rf /var/lib/apt/lists/*
+
+# -------------------------------------------------------------------
+# JADX (CLI) - Android decompilation
+# -------------------------------------------------------------------
+RUN set -eux; \
+    JD_VER="1.5.0"; \
+    curl -fsSL -o /tmp/jadx.zip "https://github.com/skylot/jadx/releases/download/v${JD_VER}/jadx-${JD_VER}.zip"; \
+    rm -rf /opt/jadx; mkdir -p /opt/jadx; \
+    unzip -q /tmp/jadx.zip -d /opt/jadx; \
+    if [ -d "/opt/jadx/bin" ]; then :; \
+    elif ls -d /opt/jadx/jadx-* >/dev/null 2>&1; then \
+      jd="$(ls -d /opt/jadx/jadx-*)" && mv "$jd"/* /opt/jadx/ && rmdir "$jd" || true; \
+    fi; \
+    ln -sf /opt/jadx/bin/jadx /usr/local/bin/jadx; \
+    rm -f /tmp/jadx.zip
+
+# -------------------------------------------------------------------
+# radare2 for binary analysis
+# -------------------------------------------------------------------
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends radare2; \
+    rm -rf /var/lib/apt/lists/*
+
+# -------------------------------------------------------------------
+# Mobile-specific CLI tools (MobSF + Quark + Objection)
+# -------------------------------------------------------------------
+RUN set -eux; \
+    git clone --depth=1 https://github.com/MobSF/Mobile-Security-Framework-MobSF /opt/mobsf; \
+    /opt/ghost-venv/bin/pip install --no-cache-dir -r /opt/mobsf/requirements.txt || true; \
+    /opt/ghost-venv/bin/pip install --no-cache-dir quark-engine || true; \
+    /opt/ghost-venv/bin/pip install --no-cache-dir objection || true
+
+# -------------------------------------------------------------------
+# CLI shims to venv tools
+# -------------------------------------------------------------------
+RUN set -eux; \
+  mkdir -p /usr/local/bin; \
+  for n in frida-ps objection apkid mobsfscan androguard quark; do \
+    printf '#!/usr/bin/env bash\nexec /opt/ghost-venv/bin/%s \"$@\"\n' "$n" > "/usr/local/bin/${n}"; \
+    chmod +x "/usr/local/bin/${n}"; \
+  done; \
+  printf '#!/usr/bin/env bash\nexec /opt/ghost-venv/bin/python /opt/mobsf/mobsf.py \"$@\"\n' > /usr/local/bin/mobsf; \
+  chmod +x /usr/local/bin/mobsf
+
+# -------------------------------------------------------------------
+# Helper scripts
+# -------------------------------------------------------------------
+RUN set -eux; \
+    # APK helper
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'echo "[mobile] APK Analysis Workflow:"' \
+    'echo "  jadx -d ./decompiled app.apk"' \
+    'echo "  apkid app.apk"' \
+    'echo "  aapt dump badging app.apk"' \
+    'echo "  mobsfscan ./decompiled"' \
+    'echo "  androguard axml app.apk"' \
+    'echo "  objection explore"' \
+    > /usr/local/bin/gw-mobile-apk && chmod +x /usr/local/bin/gw-mobile-apk; \
+    # IPA helper
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'echo "[mobile] iOS IPA Analysis Workflow:"' \
+    'echo "  unzip -q app.ipa -d ./extracted"' \
+    'echo "  file Payload/*.app/*"' \
+    'echo "  r2 Payload/*.app/*"' \
+    'echo "  plutil -p Payload/*.app/Info.plist"' \
+    'echo "  mobsf app.ipa"' \
+    'echo "  objection -g app explore"' \
+    > /usr/local/bin/gw-mobile-ios && chmod +x /usr/local/bin/gw-mobile-ios; \
+    # ADB helper
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'echo "[mobile] ADB Quick Commands:"' \
+    'echo "  adb devices -l"' \
+    'echo "  adb shell pm list packages"' \
+    'echo "  adb install app.apk"' \
+    'echo "  adb shell dumpsys package <pkg>"' \
+    'echo "  adb logcat | grep -i <pattern>"' \
+    > /usr/local/bin/gw-mobile-adb && chmod +x /usr/local/bin/gw-mobile-adb; \
+    # iOS device helper
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'echo "[mobile] iOS Device Commands:"' \
+    'echo "  idevice_id -l"' \
+    'echo "  ideviceinfo"' \
+    'echo "  ideviceinstaller -l"' \
+    'echo "  idevicesyslog"' \
+    'echo "  ifuse /mnt/ios --root"' \
+    > /usr/local/bin/gw-mobile-idevice && chmod +x /usr/local/bin/gw-mobile-idevice; \
+    # frida helper
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'echo "[mobile] Frida Usage:"' \
+    'echo "  frida-ps -U"' \
+    'echo "  frida-ps -U -i"' \
+    'echo "  frida -U -f com.app.name -l script.js"' \
+    'echo "  objection -g app explore"' \
+    'echo "  frida-trace -U -i open com.app"' \
+    > /usr/local/bin/gw-mobile-frida && chmod +x /usr/local/bin/gw-mobile-frida
+
+# -------------------------------------------------------------------
+# session-log
+# -------------------------------------------------------------------
+RUN set -eux; \
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'mkdir -p /shared/history' \
+    'export HISTFILE="/shared/history/$(date +%F_%H%M%S).bash_history"' \
+    'export PROMPT_COMMAND="history -a"' \
+    'exec bash -l' > /usr/local/bin/session-log && chmod +x /usr/local/bin/session-log
+
+# -------------------------------------------------------------------
+# profile.d
+# -------------------------------------------------------------------
+RUN set -eux; \
+    ln -s /usr/bin/fdfind /usr/local/bin/fd || true; \
+    ln -s /usr/bin/batcat /usr/local/bin/bat || true; \
+    printf '%s\n' \
+    '[ -n "$BASH_VERSION" ] || return 0' \
+    'export ARTIFACTS=/shared' \
+    'alias ll="ls -alF --color=auto"' \
+    'alias bat="bat --paging=never"' \
+    'alias fd="fdfind"' \
+    'alias mobile-apk="gw-mobile-apk"' \
+    'alias mobile-ios="gw-mobile-ios"' \
+    'alias mobile-adb="gw-mobile-adb"' \
+    'alias mobile-idevice="gw-mobile-idevice"' \
+    'alias mobile-frida="gw-mobile-frida"' \
+    'export HISTTIMEFORMAT="%F %T "' \
+    'export HISTCONTROL=ignorespace:erasedups' \
+    'GHOST_LABEL=${GHOST_LABEL:-mobile}' \
+    'ghost_prompt(){ local r=$?; if [ $r -eq 0 ]; then GS="\[\e[1;32m\]✔"; else GS="\[\e[1;31m\]✘"; fi; export GS; }' \
+    'PROMPT_COMMAND=ghost_prompt' \
+    'PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;35m\]ghostwire-mobile\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GHOST_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "' \
+    'echo "[mobile] Android: jadx, apkid, objection, adb, aapt, androguard"' \
+    'echo "[mobile] iOS: idevice, radare2, objection, mobsf, frida"' \
+    > /etc/profile.d/ghostwire-mobile.sh && chmod 0644 /etc/profile.d/ghostwire-mobile.sh
+
+# -------------------------------------------------------------------
+# Non-root user
+# -------------------------------------------------------------------
+RUN set -eux; \
+    groupadd -r ghost && useradd -m -g ghost -s /bin/bash ghost; \
+    mkdir -p /work "${ARTIFACTS}" /etc/sudoers.d; \
+    chown -R ghost:ghost /work "${ARTIFACTS}" /opt/ghost-venv /opt/jadx /opt/mobsf; \
+    echo 'ghost ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ghost; \
+    chmod 0440 /etc/sudoers.d/ghost
+
+
+USER ghost
+WORKDIR /work
+
+VOLUME ["/shared", "/work"]
+
+HEALTHCHECK --interval=1h --timeout=10s --start-period=20s --retries=3 \
+    CMD sh -c 'command -v adb >/dev/null 2>&1 && command -v jadx >/dev/null 2>&1 && command -v idevice_id >/dev/null 2>&1 || exit 1'
+
+STOPSIGNAL SIGINT
+ENTRYPOINT ["/usr/bin/tini","--"]
+CMD ["/bin/bash"]
