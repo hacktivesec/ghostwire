@@ -1,0 +1,145 @@
+﻿# syntax=docker/dockerfile:1
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.title="ghostwire-web" \
+      org.opencontainers.image.description="Lean container for web application security: ffuf, gobuster, sqlmap, nikto, nuclei, httpx, wafw00f, dirsearch" \
+      org.opencontainers.image.version="dev"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=UTC \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    ARTIFACTS=/shared \
+    TERM=xterm-256color
+
+# ---- Core OS packages ----
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      ca-certificates tzdata curl wget git unzip zip default-jre-headless \
+      python3 python3-pip python3-venv build-essential sudo \
+      nano less procps netcat-openbsd dnsutils nmap \
+      nikto whatweb wafw00f dirb gobuster jq openssh-client tini; \
+    rm -rf /var/lib/apt/lists/*
+
+# ---- Python venv + core web tools ----
+RUN python3 -m venv /opt/ghost-venv && \
+    /opt/ghost-venv/bin/python -m pip install --upgrade pip "setuptools<81" wheel && \
+    /opt/ghost-venv/bin/pip install --no-cache-dir \
+      sqlmap dirsearch wafw00f python-wappalyzer arjun commix
+
+# ---- XSStrike (manual clone, works with Python 3.12) ----
+RUN set -eux; \
+    git clone --depth 1 https://github.com/s0md3v/XSStrike /opt/xsstrike; \
+    /opt/ghost-venv/bin/pip install -r /opt/xsstrike/requirements.txt; \
+    ln -s /opt/xsstrike/xsstrike.py /usr/local/bin/xsstrike; \
+    chmod +x /usr/local/bin/xsstrike
+
+# ---- testssl.sh (GitHub version, not pip) ----
+RUN set -eux; \
+    git clone --depth 1 https://github.com/drwetter/testssl.sh /opt/testssl; \
+    ln -s /opt/testssl/testssl.sh /usr/local/bin/testssl; \
+    chmod +x /usr/local/bin/testssl
+
+# ---- Go-based web tools ----
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends golang-go; \
+    export GOBIN=/usr/local/bin; \
+    export PATH=$GOBIN:$PATH; \
+    go install github.com/ffuf/ffuf/v2@latest; \
+    go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest; \
+    go install github.com/projectdiscovery/httpx/cmd/httpx@latest; \
+    go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest; \
+    go install github.com/tomnomnom/waybackurls@latest; \
+    go install github.com/tomnomnom/gf@latest; \
+    go install github.com/tomnomnom/unfurl@latest; \
+    go install github.com/tomnomnom/qsreplace@latest; \
+    go install github.com/jaeles-project/jaeles@latest; \
+    go install github.com/jaeles-project/gospider@latest; \
+    rm -rf /root/go /var/lib/apt/lists/*; \
+    apt-get purge -y --auto-remove golang-go || true
+
+# ---- PATH shims for venv tools ----
+RUN set -eux; \
+  for n in sqlmap dirsearch wafw00f arjun commix; do \
+    printf '%s\n' '#!/usr/bin/env bash' "exec /opt/ghost-venv/bin/${n} \"\$@\"" > "/usr/local/bin/${n}" || true; \
+    chmod +x "/usr/local/bin/${n}" || true; \
+  done
+
+# ---- Web helper scripts ----
+RUN set -eux; \
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'echo "[web] Reconnaissance:"' \
+    'echo "  httpx -l domains.txt -status-code -title -tech-detect"' \
+    'echo "  gospider -s https://target.com -o output"' \
+    'echo "  waybackurls target.com | tee urls.txt"' \
+    'echo "  nuclei -l urls.txt -t /root/nuclei-templates/"' \
+    > /usr/local/bin/gw-web-recon && chmod +x /usr/local/bin/gw-web-recon; \
+    \
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'echo "[web] Fuzzing & Discovery:"' \
+    'echo "  ffuf -u https://target.com/FUZZ -w wordlist.txt -mc all"' \
+    'echo "  gobuster dir -u https://target.com -w wordlist.txt"' \
+    'echo "  dirsearch -u https://target.com -e php,html,js"' \
+    'echo "  arjun -u https://target.com/search"' \
+    > /usr/local/bin/gw-web-fuzz && chmod +x /usr/local/bin/gw-web-fuzz; \
+    \
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'echo "[web] Vulnerability Scanning:"' \
+    'echo "  nuclei -u https://target.com -t /root/nuclei-templates/"' \
+    'echo "  nikto -h https://target.com"' \
+    'echo "  sqlmap -u \"https://target.com/page?id=1\" --batch"' \
+    'echo "  xsstrike -u https://target.com/search?q=test"' \
+    'echo "  commix -u https://target.com/cmd.php?cmd=whoami"' \
+    'echo "  wafw00f https://target.com"' \
+    'echo "  testssl https://target.com"' \
+    > /usr/local/bin/gw-web-vuln && chmod +x /usr/local/bin/gw-web-vuln
+
+# ---- session-log helper ----
+RUN cat > /usr/local/bin/session-log <<'SH' && chmod +x /usr/local/bin/session-log
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p "${ARTIFACTS:-/shared}/history"
+export HISTFILE="${ARTIFACTS:-/shared}/history/$(date +%F_%H%M%S).bash_history"
+export PROMPT_COMMAND='history -a'
+exec bash -l
+SH
+
+# ---- QoL profile ----
+RUN cat > /etc/profile.d/ghostwire-web.sh <<'PSH' && chmod 0644 /etc/profile.d/ghostwire-web.sh
+[ -n "$BASH_VERSION" ] || return 0
+export ARTIFACTS=${ARTIFACTS:-/shared}
+alias ll='ls -alF --color=auto'
+alias web-recon='gw-web-recon'
+alias web-fuzz='gw-web-fuzz'
+alias web-vuln='gw-web-vuln'
+export HISTTIMEFORMAT="%F %T "
+export HISTCONTROL=ignorespace:erasedups
+ghost_prompt(){ local r=$?; if [ $r -eq 0 ]; then GS="\[\e[1;32m\]✔"; else GS="\[\e[1;31m\]✘"; fi; export GS; }
+PROMPT_COMMAND=ghost_prompt
+PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;33m\]ghostwire-web\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]web\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "
+echo "[web] Recon: httpx, gospider, waybackurls, dnsx"
+echo "[web] Fuzzing: ffuf, gobuster, dirsearch, arjun"
+echo "[web] Vuln: nuclei, sqlmap, xsstrike, commix, nikto, testssl"
+PSH
+
+# ---- Non-root user ----
+RUN groupadd -r ghost && useradd -m -r -g ghost -s /bin/bash ghost && \
+    mkdir -p /work "${ARTIFACTS}" /opt/tools && \
+    chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools /opt/ghost-venv
+
+USER ghost
+WORKDIR /work
+VOLUME ["/shared","/work"]
+
+# ---- Healthcheck ----
+HEALTHCHECK --interval=1h --timeout=10s --start-period=20s --retries=3 \
+  CMD sh -c 'command -v ffuf >/dev/null 2>&1 && command -v nuclei >/dev/null 2>&1 && command -v sqlmap >/dev/null 2>&1 || exit 1'
+
+ENTRYPOINT ["/usr/bin/tini","--"]
+CMD ["/bin/bash"]

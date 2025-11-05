@@ -1,0 +1,120 @@
+﻿name: ghostwire
+
+volumes:
+  shared: {}
+  work: {}
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        BASE_IMAGE: ${BASE_IMAGE}
+    image: ${IMAGE_PREFIX:-local}/ghostwire:web
+    command: ["/bin/bash","-lc","session-log"]
+    environment:
+      TZ: ${TZ}
+      LC_ALL: ${LC_ALL}
+      LANG: ${LANG}
+      GHOST_LABEL: web
+    volumes:
+      - shared:/shared
+      - work:/work
+    tty: true
+    stdin_open: true
+
+  net:
+    build:
+      context: .
+      dockerfile: Dockerfile.net
+      args:
+        BASE_IMAGE: ${BASE_IMAGE}
+    image: ${IMAGE_PREFIX:-local}/ghostwire:net
+    command: ["/bin/bash","-lc","session-log"]
+    environment:
+      TZ: ${TZ}
+      LC_ALL: ${LC_ALL}
+      LANG: ${LANG}
+      GHOST_LABEL: network
+    volumes:
+      - shared:/shared
+      - work:/work
+    tty: true
+    stdin_open: true
+
+  wifi:
+    build:
+      context: .
+      dockerfile: Dockerfile.wifi
+      args:
+        BASE_IMAGE: ${BASE_IMAGE}
+    image: ${IMAGE_PREFIX:-local}/ghostwire:wifi
+    command: ["/bin/bash","-lc","session-log"]
+    environment:
+      TZ: ${TZ}
+      LC_ALL: ${LC_ALL}
+      LANG: ${LANG}
+      GHOST_LABEL: wifi
+    volumes:
+      - shared:/shared
+      - work:/work
+    tty: true
+    stdin_open: true
+
+  mobile:
+    build:
+      context: .
+      dockerfile: Dockerfile.mobile
+      args:
+        BASE_IMAGE: ${BASE_IMAGE}
+    image: ${IMAGE_PREFIX:-local}/ghostwire:mobile
+    command: ["/bin/bash","-lc","session-log"]
+    environment:
+      TZ: ${TZ}
+      LC_ALL: ${LC_ALL}
+      LANG: ${LANG}
+      GHOST_LABEL: mobile
+    volumes:
+      - shared:/shared
+      - work:/work
+    tty: true
+    stdin_open: true
+
+  ad:
+    build:
+      context: .
+      dockerfile: Dockerfile.ad
+      args:
+        BASE_IMAGE: ${BASE_IMAGE}
+    image: ${IMAGE_PREFIX:-local}/ghostwire:ad
+    command: ["/bin/bash","-lc","session-log"]
+    environment:
+      TZ: ${TZ}
+      LC_ALL: ${LC_ALL}
+      LANG: ${LANG}
+      GHOST_LABEL: ad
+    volumes:
+      - shared:/shared
+      - work:/work
+    tty: true
+    stdin_open: true
+
+  total:
+    build:
+      context: .
+      dockerfile: Dockerfile.total
+      args:
+        BASE_IMAGE: ${BASE_IMAGE}
+    image: ${IMAGE_PREFIX:-local}/ghostwire:total
+    command: ["/bin/bash","-lc","/bin/bash"]
+    environment:
+      TZ: ${TZ}
+      LC_ALL: ${LC_ALL}
+      LANG: ${LANG}
+      GHOST_LABEL: total
+    volumes:
+      - shared:/shared
+      - work:/work
+    tty: true
+    stdin_open: true

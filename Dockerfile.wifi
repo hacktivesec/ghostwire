@@ -1,0 +1,126 @@
+﻿# syntax=docker/dockerfile:1
+FROM ubuntu:24.04
+
+LABEL org.opencontainers.image.title="ghostwire-wifi" \
+      org.opencontainers.image.description="Ghostwire - wireless toolkit (lean)" \
+      org.opencontainers.image.vendor="ghostwire" \
+      org.opencontainers.image.version="dev" \
+      org.opencontainers.image.licenses="CC0-1.0"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=UTC \
+    LC_ALL=C.UTF-8 LANG=C.UTF-8 \
+    TERM=xterm-256color \
+    ARTIFACTS=/shared \
+    GHOST_LABEL=wifi
+
+# ---- Core + Wi-Fi toolchain (lean) ----
+RUN set -eux; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+    ca-certificates tzdata curl wget git jq sudo \
+    nano less bash-completion file \
+    python3 \
+    aircrack-ng reaver pixiewps \
+    hcxdumptool hcxtools \
+    iw wireless-tools rfkill wpasupplicant \
+    tcpdump tshark \
+    usbutils kmod \
+    iproute2 dnsutils iputils-ping traceroute netcat-openbsd socat openssl \
+    ripgrep fd-find fzf whois tree rsync bat openssh-client unzip zip procps tini tar; \
+  rm -rf /var/lib/apt/lists/*
+
+# ---- Helpers: monitor mode, scan, capture ----
+RUN cat > /usr/local/bin/wifi-mon <<'SH' && chmod +x /usr/local/bin/wifi-mon
+#!/usr/bin/env bash
+set -euo pipefail
+IF="${1:-}"
+ACTION="${2:-on}"   # on|off
+[ -n "$IF" ] || { echo "usage: wifi-mon <iface> [on|off]" >&2; exit 2; }
+if [ "$ACTION" = "on" ]; then
+  rfkill unblock all || true
+  ip link set "$IF" down
+  iw dev "$IF" set type monitor
+  ip link set "$IF" up
+  echo "[wifi] $IF -> monitor mode"
+else
+  ip link set "$IF" down || true
+  iw dev "$IF" set type managed || true
+  ip link set "$IF" up || true
+  echo "[wifi] $IF -> managed mode"
+fi
+SH
+
+RUN cat > /usr/local/bin/wifi-scan <<'SH' && chmod +x /usr/local/bin/wifi-scan
+#!/usr/bin/env bash
+set -euo pipefail
+IF="${1:-}"
+[ -n "$IF" ] || { echo "usage: wifi-scan <mon-iface>" >&2; exit 2; }
+echo "[wifi] scanning on $IF (CTRL+C to stop)"
+airodump-ng "$IF"
+SH
+
+RUN cat > /usr/local/bin/wifi-capture <<'SH' && chmod +x /usr/local/bin/wifi-capture
+#!/usr/bin/env bash
+set -euo pipefail
+IF="${1:-}"; CH="${2:-}"; OUT="${3:-/shared/capture}"
+[ -n "$IF" ] || { echo "usage: wifi-capture <mon-iface> [channel] [/shared/capture-prefix]" >&2; exit 2; }
+mkdir -p "$(dirname "$OUT")"
+ts="$(date +%F_%H%M%S)"
+prefix="${OUT}_$ts"
+if [ -n "$CH" ]; then
+  echo "[wifi] fixed channel $CH"
+  exec airodump-ng -w "$prefix" --output-format pcap --channel "$CH" "$IF"
+else
+  exec airodump-ng -w "$prefix" --output-format pcap "$IF"
+fi
+SH
+
+# USB/usbmon capture helper
+RUN cat > /usr/local/bin/gw-usb-capture <<'SH' && chmod +x /usr/local/bin/gw-usb-capture
+#!/usr/bin/env bash
+set -euo pipefail
+MON="${1:-usbmon0}"; OUT="${2:-/shared/usb.pcap}"
+if [ ! -e /sys/kernel/debug/usb/usbmon ] && [ ! -e /sys/kernel/debug/usb/"$MON" ]; then
+  echo "usbmon unavailable. On HOST: sudo modprobe usbmon && sudo mount -t debugfs none /sys/kernel/debug" >&2
+  echo "run container with: -v /sys/kernel/debug:/sys/kernel/debug -v /dev/bus/usb:/dev/bus/usb:ro" >&2
+fi
+lsusb 2>/dev/null || true
+echo "[gw] capturing from $MON -> $OUT"
+sudo -n tcpdump -i "$MON" -s 0 -w "$OUT"
+echo "[gw] saved: $OUT"
+SH
+
+# ---- Session logging + prompt (no heredocs; Windows-safe) ----
+RUN ln -s /usr/bin/fdfind /usr/local/bin/fd || true && \
+    ln -s /usr/bin/batcat /usr/local/bin/bat || true && \
+    printf '%s\n' \
+      '[ -n "$BASH_VERSION" ] || return 0' \
+      'export ARTIFACTS=/shared' \
+      'alias ll='\''ls -alF --color=auto'\''' \
+      'alias bat='\''bat --paging=never'\''' \
+      'alias fd='\''fdfind'\''' \
+      'export HISTTIMEFORMAT="%F %T "' \
+      'export HISTCONTROL=ignorespace:erasedups' \
+      'GHOST_LABEL=${GHOST_LABEL:-wifi}' \
+      'ghost_prompt(){ local r=$?; if [ $r -eq 0 ]; then GS="\[\e[1;32m\]✔"; else GS="\[\e[1;31m\]✘"; fi; export GS; }' \
+      'PROMPT_COMMAND=ghost_prompt' \
+      'PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;32m\]ghostwire\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GHOST_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "' \
+      > /etc/profile.d/ghostwire.sh && chmod 0644 /etc/profile.d/ghostwire.sh
+
+# ---- Non-root user with passwordless sudo (for tcpdump usbmon) ----
+RUN groupadd -r ghost && useradd -m -g ghost -s /bin/bash ghost && \
+    mkdir -p /work "${ARTIFACTS}" /opt/tools && \
+    chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools && \
+    printf 'ghost ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/ghost && chmod 0440 /etc/sudoers.d/ghost
+
+USER ghost
+WORKDIR /work
+VOLUME ["/shared", "/work"]
+
+HEALTHCHECK --interval=1h --timeout=10s --start-period=20s --retries=3 \
+  CMD sh -c 'command -v airodump-ng >/dev/null 2>&1 && command -v hcxdumptool >/dev/null 2>&1 && command -v tshark >/dev/null 2>&1 || exit 1'
+
+STOPSIGNAL SIGINT
+ENTRYPOINT ["/usr/bin/tini","--"]
+CMD ["/bin/bash"]

@@ -1,0 +1,169 @@
+# syntax=docker/dockerfile:1
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.title="ghostwire-net" \
+      org.opencontainers.image.description="Ghostwire - network only (lean)" \
+      org.opencontainers.image.vendor="ghostwire" \
+      org.opencontainers.image.version="dev" \
+      org.opencontainers.image.licenses="CC0-1.0"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=UTC \
+    LC_ALL=C.UTF-8 LANG=C.UTF-8 \
+    PIP_NO_CACHE_DIR=1 \
+    TERM=xterm-256color \
+    ARTIFACTS=/shared \
+    GHOST_LABEL=network \
+    SOCKS5_HOST=127.0.0.1 \
+    SOCKS5_PORT=1080
+
+# ---- Core network toolchain (lean & practical) ----
+RUN set -eux; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends \
+    ca-certificates tzdata curl wget git jq \
+    nano less bash-completion \
+    python3 python3-pip python3-venv \
+    golang-go \
+    # scanners
+    nmap masscan \
+    # network basics
+    dnsutils iputils-ping traceroute whois \
+    netcat-openbsd socat openssl iproute2 tcpdump \
+    # auth/brute
+    hydra \
+    # service enumeration
+    ike-scan onesixtyone snmp \
+    # traffic analysis
+    tshark tcpflow ngrep \
+    # tunneling
+    sshuttle openvpn wireguard-tools \
+    # QoL / utilities
+    ripgrep fd-find fzf tree rsync bat proxychains4 openssh-client unzip zip procps tini tar \
+    # add plutil (macOS/iOS property list parser)
+    libplist-utils; \
+  rm -rf /var/lib/apt/lists/*
+
+# ---- Python network tooling (minimal) ----
+RUN python3 -m venv /opt/ghost-venv && \
+    /opt/ghost-venv/bin/python -m pip install --upgrade pip "setuptools<81" wheel && \
+    /opt/ghost-venv/bin/pip install --no-cache-dir \
+      scapy impacket requests PySocks
+
+# ---- Essential Go tools (chisel + discovery) ----
+RUN set -eux; \
+    export GOBIN=/usr/local/bin; \
+    export PATH=$GOBIN:$PATH; \
+    go install github.com/jpillora/chisel@latest; \
+    go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest; \
+    go install github.com/projectdiscovery/httpx/cmd/httpx@latest; \
+    # verify
+    ls -l /usr/local/bin/chisel /usr/local/bin/dnsx /usr/local/bin/httpx; \
+    rm -rf /root/go /home/*/go /usr/local/go/pkg /usr/local/go/src
+
+# ---- Network helper scripts (with tunneling focus) ----
+RUN set -eux; \
+    # Quick network scan helper
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'echo "[net] Quick Network Assessment:"' \
+    'echo "  nmap -sC -sV -oA scan <target>          # Standard service scan"' \
+    'echo "  masscan -p1-1000 <target> --rate=1000   # Fast port discovery"' \
+    'echo "  dnsx -d domain.com -a -aaaa -cname      # DNS enumeration"' \
+    'echo "  httpx -l hosts.txt -status-code         # HTTP service discovery"' \
+    'echo "  ike-scan -A <target>                    # VPN assessment"' \
+    'echo "  onesixtyone <target>                    # SNMP discovery"' \
+    > /usr/local/bin/gw-net-scan && \
+    chmod +x /usr/local/bin/gw-net-scan; \
+    \
+    # Tunneling helper (expanded)
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'echo "[net] Tunneling & Pivoting:"' \
+    'echo "  chisel server -p 8080 --reverse        # Chisel server"' \
+    'echo "  chisel client server:8080 R:1080:socks # Chisel SOCKS proxy"' \
+    'echo "  sshuttle -r user@jumpbox 10.0.0.0/8    # SSH VPN tunnel"' \
+    'echo "  openvpn config.ovpn                    # OpenVPN connection"' \
+    'echo "  wg-quick up wg0.conf                   # WireGuard connection"' \
+    'echo "  px nmap -sT target                     # Through SOCKS proxy"' \
+    > /usr/local/bin/gw-net-tunnel && \
+    chmod +x /usr/local/bin/gw-net-tunnel; \
+    \
+    # Traffic analysis helper
+    printf '%s\n' '#!/usr/bin/env bash' \
+    'set -euo pipefail' \
+    'echo "[net] Traffic Analysis:"' \
+    'echo "  tcpdump -i any -w capture.pcap         # Capture traffic"' \
+    'echo "  tshark -r capture.pcap -Y \\\"http\\\"     # Filter HTTP"' \
+    'echo "  tcpflow -r capture.pcap                # Extract TCP streams"' \
+    'echo "  ngrep -d any -W byline port 80         # Live packet inspection"' \
+    > /usr/local/bin/gw-net-traffic && \
+    chmod +x /usr/local/bin/gw-net-traffic
+
+# ---- SOCKS wrapper, session logging, prompt ----
+RUN cat > /usr/local/bin/px <<'PC' && chmod +x /usr/local/bin/px
+#!/usr/bin/env bash
+set -euo pipefail
+H="${SOCKS5_HOST:-127.0.0.1}"
+P="${SOCKS5_PORT:-1080}"
+CFG="$(mktemp /tmp/proxychains.XXXXXX)"
+trap 'rm -f "$CFG"' EXIT INT TERM
+cat >"$CFG"<<PCFG
+strict_chain
+proxy_dns
+tcp_read_time_out 15000
+tcp_connect_time_out 8000
+[ProxyList]
+socks5 $H $P
+PCFG
+exec proxychains4 -q -f "$CFG" "$@"
+PC
+
+RUN printf '#!/usr/bin/env bash\nexec px curl "$@"\n' > /usr/local/bin/pxcurl && chmod +x /usr/local/bin/pxcurl
+
+RUN cat > /usr/local/bin/session-log <<'SH' && chmod +x /usr/local/bin/session-log
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p /shared/history
+export HISTFILE="/shared/history/$(date +%F_%H%M%S).bash_history"
+export PROMPT_COMMAND='history -a'
+exec bash -l
+SH
+
+RUN ln -s /usr/bin/fdfind /usr/local/bin/fd || true && \
+    ln -s /usr/bin/batcat /usr/local/bin/bat || true && \
+    cat > /etc/profile.d/ghostwire.sh <<'PSH' && chmod 0644 /etc/profile.d/ghostwire.sh
+[ -n "$BASH_VERSION" ] || return 0
+export ARTIFACTS=/shared
+alias ll='ls -alF --color=auto'
+alias bat='bat --paging=never'
+alias fd='fdfind'
+alias net-scan='gw-net-scan'
+alias net-tunnel='gw-net-tunnel'
+alias net-traffic='gw-net-traffic'
+export HISTTIMEFORMAT="%F %T "
+export HISTCONTROL=ignorespace:erasedups
+GHOST_LABEL=${GHOST_LABEL:-network}
+ghost_prompt(){ local r=$?; if [ $r -eq 0 ]; then GS="\[\e[1;32m\]✔"; else GS="\[\e[1;31m\]✘"; fi; export GS; }
+PROMPT_COMMAND=ghost_prompt
+PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;34m\]ghostwire-net\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GHOST_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "
+echo "[net] Tools: nmap, masscan, tshark, chisel, openvpn, wireguard, dnsx, httpx"
+PSH
+
+# ---- Non-root user ----
+RUN groupadd -r ghost && useradd -m -g ghost -s /bin/bash ghost && \
+    mkdir -p /work "${ARTIFACTS}" /opt/tools && \
+    chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools /opt/ghost-venv
+
+USER ghost
+WORKDIR /work
+VOLUME ["/shared", "/work"]
+
+# ---- Healthcheck / entry ----
+HEALTHCHECK --interval=1h --timeout=10s --start-period=20s --retries=3 \
+  CMD sh -c 'command -v nmap >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1 || exit 1'
+
+STOPSIGNAL SIGINT
+ENTRYPOINT ["/usr/bin/tini","--"]
+CMD ["/bin/bash"]
