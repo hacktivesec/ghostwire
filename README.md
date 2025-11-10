@@ -57,6 +57,7 @@ Impacket wrappers: `psexec`, `wmiexec`, `secretsdump`, `ntlmrelayx`, `atexec`, `
 
 * `Dockerfile.total` → single **multi-stage** Dockerfile (stages: `web`, `wifi`, `net`, `mobile`, `ad`, `total`)
 * `docker-compose.yml` → recommended way to build/run per stage with `build.target`
+* `docker-compose.merged.yml` → convenience file to build/run **all** stages/services at once
 
 ---
 
@@ -149,6 +150,34 @@ docker compose down -v
 ```
 
 > **Linux host networking:** add `network_mode: "host"` to services you want to share host net with (Linux only).
+
+---
+
+## 🧩 Merged Compose (PowerShell quickstart)
+
+If you’re using the included **`docker-compose.merged.yml`**, these commands build and run **all** services:
+
+```powershell
+# build every service from the merged file
+docker compose -f .\docker-compose.merged.yml build
+
+# start everything (web, wifi, net, mobile, ad, total)
+docker compose -f .\docker-compose.merged.yml up -d web wifi net mobile ad total
+
+# open a shell in one (pick one)
+docker compose -f .\docker-compose.merged.yml exec ad bash
+docker compose -f .\docker-compose.merged.yml exec web bash
+docker compose -f .\docker-compose.merged.yml exec wifi bash
+docker compose -f .\docker-compose.merged.yml exec net bash
+docker compose -f .\docker-compose.merged.yml exec mobile bash
+docker compose -f .\docker-compose.merged.yml exec total bash
+
+# quick presence check example (AD)
+docker compose -f .\docker-compose.merged.yml run --rm ad bash -lc 'set -e; for c in psexec secretsdump wmiexec ntlmrelayx atexec ticketer GetUserSPNs GetNPUsers addcomputer smbserver ldapdomaindump bloodhound smbmap evil-winrm nxc; do command -v "$c" >/dev/null || { echo "missing: $c"; exit 1; }; done; echo OK:ad'
+
+# stop & clean
+docker compose -f .\docker-compose.merged.yml down -v
+```
 
 ---
 
@@ -400,6 +429,7 @@ OCI labels are included in the image metadata.
 ## 📝 Changelog (high-level)
 
 * Added: Compose recipe with per-stage services and build targets
+* Added: **Merged Compose** quickstart (PowerShell)
 * Added: network/service (`snmp`, `ike-scan`, `patator`)
 * Added: wireless (`aircrack-ng`, `reaver`)
 * Added: stego/forensics (`steghide`, `exiftool`, `binwalk`, `foremost`, `bulk_extractor`)
