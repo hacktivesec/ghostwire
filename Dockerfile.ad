@@ -5,6 +5,21 @@
 #######################################################################
 ARG BASE_IMAGE=ubuntu:24.04
 
+# --- Stage -1 (opzionale): normalizza CRLF->LF per file del build context ---
+# Usa questo stage solo se devi copiare file locali che potrebbero avere CRLF.
+# Esempio (da abilitare quando ti serve):
+#   FROM ${BASE_IMAGE} AS crlf_normalizer
+#   COPY ./scripts/ /src/scripts/
+#   RUN find /src -type f -print0 | xargs -0 -r dos2unix --
+FROM ${BASE_IMAGE} AS crlf_normalizer
+ENV DEBIAN_FRONTEND=noninteractive
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends dos2unix; \
+    rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+# (non copi nulla di default: lo stage resta "no-op" finché non lo referenzi)
+
 # --- Stage 0: build bulk_extractor from source ---
 FROM ubuntu:24.04 AS bulkbuilder
 ENV DEBIAN_FRONTEND=noninteractive
@@ -273,7 +288,14 @@ PC
 # ---- QoL: aliases + prompt ----
 RUN set -eux; \
     cat > /etc/profile.d/ghostwire-ad.sh <<'PSH' && chmod 0644 /etc/profile.d/ghostwire-ad.sh
-[ -n "$BASH_VERSION" ] || return 0
+#!/usr/bin/env bash
+# Questo file viene normalmente *sourcato* da bash. Se qualcuno lo esegue,
+# esci in modo pulito; se non è bash o non è una shell interattiva, non fare nulla.
+if [ -z "${BASH_VERSION:-}" ]; then
+  return 0 2>/dev/null || exit 0
+fi
+case $- in *i*) : ;; *) return 0 ;; esac
+
 export SECLISTS=/opt/seclists
 export ARTIFACTS=/shared
 alias ll='ls -alF --color=auto'
@@ -284,13 +306,40 @@ alias cloud-audit='gw-cloud-audit'
 export HISTTIMEFORMAT="%F %T "
 export HISTCONTROL=ignorespace:erasedups
 GHOST_LABEL=${GHOST_LABEL:-ad-tools}
-ghost_prompt(){ local r=$?; if [ $r -eq 0 ]; then GS="\[\e[1;32m\]✔"; else GS="\[\e[1;31m\]✘"; fi; export GS; }
+
+ghost_prompt(){
+  local r=$?
+  if [ $r -eq 0 ]; then GS="\[\e[1;32m\]✔"; else GS="\[\e[1;31m\]✘"; fi
+  export GS
+}
 PROMPT_COMMAND=ghost_prompt
 PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;34m\]ghostwire-ad\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GHOST_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "
 if [ -n "${SOCKS5_HOST:-}" ]; then echo "[px] SOCKS5 target: ${SOCKS5_HOST}:${SOCKS5_PORT:-1080}"; fi
 echo "[gw] AD tools: nxc, bloodhound-python, kerbrute, certipy, coercer"
 echo "[gw] Cloud: scoutsuite, pacu, aws, az, gcloud"
 PSH
+
+# ---- Session login helper (used by compose command) ----
+RUN cat > /usr/local/bin/session-log <<'SH' && chmod +x /usr/local/bin/session-log
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p /shared/history
+export HISTFILE="/shared/history/$(date +%F_%H%M%S).bash_history"
+export PROMPT_COMMAND='history -a'
+exec bash -l
+SH
+
+# ---- CRLF guard (normalizza eventuali line endings Windows) ----
+# Tenuto tardi nella build per non invalidare cache inutilmente.
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends dos2unix; \
+    git config --system core.autocrlf false || true; \
+    find /usr/local/bin -type f -print0 | xargs -0 -r dos2unix --; \
+    find /opt -type f \( -name '*.sh' -o -name '*.py' -o -name '*.ps1' -o -name '*.psm1' -o -name '*.psd1' -o -name '*.cmd' -o -name '*.bat' \) -print0 | xargs -0 -r dos2unix --; \
+    find /etc/profile.d -type f -name '*.sh' -print0 | xargs -0 -r dos2unix --; \
+    apt-get purge -y dos2unix; \
+    rm -rf /var/lib/apt/lists/*
 
 # ---- Non-root user setup ----
 RUN set -eux; \
