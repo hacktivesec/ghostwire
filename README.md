@@ -1,13 +1,16 @@
+
 <p align="center">
   <img src="https://github.com/hacktivesec/ghostwire/blob/main/Ghostwire.png" alt="Ghostwire" width="50%">
 </p>
 
-# ghostwire
+<h1 align="center">ghostwire</h1>
 
-A lean, no-nonsense **web / network / AD** toolkit that runs anywhere Docker runs.
-Bring your targets, scope, and a SOCKS pivot—ghostwire handles the rest.
+<p align="center">
+  A lean, no-nonsense <b>web / network / AD</b> toolkit that runs anywhere Docker runs.<br>
+  Bring your targets, scope, and a SOCKS pivot — ghostwire handles the rest.
+</p>
 
-<p align="left">
+<p align="center">
   <a href="#"><img alt="Ubuntu 24.04" src="https://img.shields.io/badge/base-Ubuntu%2024.04-EB5E28?logo=ubuntu&logoColor=white"></a>
   <a href="#"><img alt="Docker + Compose" src="https://img.shields.io/badge/packaging-Docker%20%2B%20Compose-2496ED?logo=docker&logoColor=white"></a>
   <a href="#"><img alt="Non-root default" src="https://img.shields.io/badge/user-ghost%20(non--root)-6C757D"></a>
@@ -16,48 +19,63 @@ Bring your targets, scope, and a SOCKS pivot—ghostwire handles the rest.
 
 ---
 
+## Table of contents
+- [What’s inside](#whats-inside)
+- [Requirements](#requirements)
+- [Repo layout](#repo-layout)
+- [Docker Compose (recommended)](#docker-compose-recommended)
+- [Merged Compose quickstart (PowerShell)](#merged-compose-quickstart-powershell)
+- [Docker CLI alternative](#docker-cli-alternative)
+- [Quickstarts](#quickstarts)
+- [Using the SOCKS pivot](#using-the-socks-pivot)
+- [Common flows (consent / lab)](#common-flows-consent--lab)
+- [Files in/out](#files-inout)
+- [Self-test](#quick-self-test)
+- [Updating](#updating)
+- [Troubleshooting](#troubleshooting)
+- [Intended use](#intended-use)
+- [Credits](#credits)
+- [Changelog (high-level)](#changelog-high-level)
+
+---
+
 ## 🔎 What’s inside
 
 ### Core CLI
-
-* **Web:** `gobuster`, `nikto`, `sqlmap`, `wfuzz`, `whatweb`, `wafw00f`, `joomscan`, `wpscan` (`wp` wrapper)
-* **Network:** `nmap`, `masscan`, `dnsutils`, `iputils-ping`, `traceroute`, `netcat-openbsd`, `socat`, `tcpdump`, `iproute2`, `openssl`, classic **enum4linux**
-* **AD / Auth:** `python3-impacket` *(module entrypoints exposed as CLIs)*, `krb5-user`, `ldap-utils`, `smbclient`, `ldapdomaindump`, `bloodhound` *(venv; `bloodhound-python` alias)*, `smbmap`
-* **Cracking:** `hashcat` *(CPU OpenCL via POCL)*, `john`, `hydra`
-* **Wordlists:** **SecLists** at `/opt/seclists` → `$SECLISTS`
+- **Web:** `gobuster`, `nikto`, `sqlmap`, `wfuzz`, `whatweb`, `wafw00f`, `joomscan`, `wpscan` (`wp` wrapper)
+- **Network:** `nmap`, `masscan`, `dnsutils`, `iputils-ping`, `traceroute`, `netcat-openbsd`, `socat`, `tcpdump`, `iproute2`, `openssl`, classic **enum4linux**
+- **AD / Auth:** `python3-impacket` *(module entrypoints exposed as CLIs)*, `krb5-user`, `ldap-utils`, `smbclient`, `ldapdomaindump`, `bloodhound` *(venv; `bloodhound-python` alias)*, `smbmap`
+- **Cracking:** `hashcat` *(CPU OpenCL via POCL)*, `john`, `hydra`
+- **Wordlists:** **SecLists** at `/opt/seclists` → `$SECLISTS`
 
 ### Extras
-
-* **Network & service:** `snmp`, `ike-scan`, `patator`
-* **Wireless** *(needs `NET_RAW`/`NET_ADMIN` caps)*: `aircrack-ng`, `reaver`
-* **Stego & forensics:** `steghide`, `exiftool`, `binwalk`, `foremost`, **bulk_extractor** *(built from source)*
-* **Mobile / reverse:** `apktool`, **jadx** (CLI + GUI), **MobSF** *(cloned only)*
-* **Cloud & containers:** **Trivy**, **AWS CLI v2**
-* **AD/Windows post-ex** *(cloned only):* **PowerSploit**, **Empire**
-* **Python (venv):** `pypykatz`, `arjun`, `commix`, `volatility3`, `objection`, `frida-tools`, **NetExec** (`nxc`, plus `crackmapexec` shim)
-* **Go recon stack** *(installed, then Go removed):* `ffuf`, `nuclei`, `jaeles`, `amass`, `subfinder`, `httpx`, `dnsx`, `katana`, `waybackurls`, `anew`, `unfurl`, `s3scanner`, `kerbrute`, `gitleaks`
+- **Network & service:** `snmp`, `ike-scan`, `patator`
+- **Wireless** *(needs `NET_RAW`/`NET_ADMIN` caps)*: `aircrack-ng`, `reaver`
+- **Stego & forensics:** `steghide`, `exiftool`, `binwalk`, `foremost`, **bulk_extractor** *(built from source)*
+- **Mobile / reverse:** `apktool`, **jadx** (CLI + GUI), **MobSF** *(cloned only)*
+- **Cloud & containers:** **Trivy**, **AWS CLI v2**
+- **AD/Windows post-ex** *(cloned only):* **PowerSploit**, **Empire**
+- **Python (venv):** `pypykatz`, `arjun`, `commix`, `volatility3`, `objection`, `frida-tools`, **NetExec** (`nxc`, plus `crackmapexec` shim)
+- **Go recon stack** *(installed, then Go removed):* `ffuf`, `nuclei`, `jaeles`, `amass`, `subfinder`, `httpx`, `dnsx`, `katana`, `waybackurls`, `anew`, `unfurl`, `s3scanner`, `kerbrute`, `gitleaks`
 
 ### Helpers
-
-`px` (SOCKS5 wrapper), `pxcurl`, `pxwget` · `savehere` · `out` · `update-seclists` · `session-log`
-`gw-wifi-capture`, `gw-usb-capture`, `gw-ssh-agent-check`, `gw-gpu-check`
+`px` (SOCKS5 wrapper), `pxcurl`, `pxwget` · `savehere` · `out` · `update-seclists` · `session-log`  
+`gw-wifi-capture`, `gw-usb-capture`, `gw-ssh-agent-check`, `gw-gpu-check`  
 Impacket wrappers: `psexec`, `wmiexec`, `secretsdump`, `ntlmrelayx`, `atexec`, `ticketer`, `GetUserSPNs`, `GetNPUsers`, `addcomputer`, `smbserver`
 
 ---
 
 ## ⚙️ Requirements
-
-* Docker **and** Docker Compose v2
-* For **SOCKS:** reachable SOCKS5 (default `127.0.0.1:1080`)
-* For **GPU:** vendor drivers on host + container runtime (`--gpus all` for NVIDIA)
+- Docker **and** Docker Compose v2
+- For **SOCKS:** reachable SOCKS5 (default `127.0.0.1:1080`)
+- For **GPU:** vendor drivers on host + container runtime (`--gpus all` for NVIDIA)
 
 ---
 
 ## 🧰 Repo layout
-
-* `Dockerfile.total` → single **multi-stage** Dockerfile (stages: `web`, `wifi`, `net`, `mobile`, `ad`, `total`)
-* `docker-compose.yml` → recommended way to build/run per stage with `build.target`
-* `docker-compose.merged.yml` → convenience file to build/run **all** stages/services at once
+- `Dockerfile.total` → single **multi-stage** Dockerfile (stages: `web`, `wifi`, `net`, `mobile`, `ad`, `total`)
+- `docker-compose.yml` → recommended way to build/run per stage with `build.target`
+- `docker-compose.merged.yml` → convenience to build/run **all** stages/services at once
 
 ---
 
@@ -72,7 +90,7 @@ x-common: &common
   build:
     context: .
     dockerfile: Dockerfile.total
-    # enable heavy frameworks at build time (optional)
+    # Optional feature flags:
     # args:
     #   ENABLE_POWERSPLOIT: "1"
     #   ENABLE_EMPIRE: "1"
@@ -85,8 +103,10 @@ x-common: &common
   volumes:
     - ./:/work
     - ./artifacts:/shared
-  # Linux host networking (optional, Linux only):
+  # Linux-only, optional:
   # network_mode: "host"
+  restart: unless-stopped
+  env_file: [.env]
 
 services:
   web:
@@ -119,9 +139,9 @@ services:
     <<: *common
     build: { target: total }
     container_name: ghostwire
-    # NVIDIA / WSL2 GPU (optional)
+    # GPU (optional)
     # gpus: "all"
-```
+````
 
 Optional **`.env`**:
 
@@ -136,10 +156,10 @@ SOCKS5_PORT=1080
 # Build all stages
 docker compose build
 
-# Start a specific instance
-docker compose up -d total   # or web|wifi|net|mobile|ad
+# Start one
+docker compose up -d total    # or web|wifi|net|mobile|ad
 
-# Exec into it
+# Shell
 docker compose exec total bash
 
 # Logs
@@ -149,22 +169,22 @@ docker compose logs -f total
 docker compose down -v
 ```
 
-> **Linux host networking:** add `network_mode: "host"` to services you want to share host net with (Linux only).
+> **Linux host networking:** add `network_mode: "host"` to services that need it (Linux only).
 
 ---
 
 ## 🧩 Merged Compose (PowerShell quickstart)
 
-If you’re using the included **`docker-compose.merged.yml`**, these commands build and run **all** services:
+Using the included **`docker-compose.merged.yml`**:
 
 ```powershell
-# build every service from the merged file
+# Build every service
 docker compose -f .\docker-compose.merged.yml build
 
-# start everything (web, wifi, net, mobile, ad, total)
+# Start everything
 docker compose -f .\docker-compose.merged.yml up -d web wifi net mobile ad total
 
-# open a shell in one (pick one)
+# Shell (pick one)
 docker compose -f .\docker-compose.merged.yml exec ad bash
 docker compose -f .\docker-compose.merged.yml exec web bash
 docker compose -f .\docker-compose.merged.yml exec wifi bash
@@ -172,10 +192,11 @@ docker compose -f .\docker-compose.merged.yml exec net bash
 docker compose -f .\docker-compose.merged.yml exec mobile bash
 docker compose -f .\docker-compose.merged.yml exec total bash
 
-# quick presence check example (AD)
-docker compose -f .\docker-compose.merged.yml run --rm ad bash -lc 'set -e; for c in psexec secretsdump wmiexec ntlmrelayx atexec ticketer GetUserSPNs GetNPUsers addcomputer smbserver ldapdomaindump bloodhound smbmap evil-winrm nxc; do command -v "$c" >/dev/null || { echo "missing: $c"; exit 1; }; done; echo OK:ad'
+# Quick presence check (AD)
+docker compose -f .\docker-compose.merged.yml run --rm ad bash -lc ^
+  "set -e; for c in psexec secretsdump wmiexec ntlmrelayx atexec ticketer GetUserSPNs GetNPUsers addcomputer smbserver ldapdomaindump bloodhound smbmap evil-winrm nxc; do command -v `"$c`" >/dev/null || { echo missing: $c; exit 1; }; done; echo OK:ad"
 
-# stop & clean
+# Stop & clean
 docker compose -f .\docker-compose.merged.yml down -v
 ```
 
@@ -184,10 +205,10 @@ docker compose -f .\docker-compose.merged.yml down -v
 ## 📦 Docker CLI (alternative)
 
 ```bash
-# choose your tag
+# build a base tag
 docker build -t ghostwire:dev -f Dockerfile.total .
 
-# Pick a stage
+# build stages
 docker build -t ghostwire:web    -f Dockerfile.total --target web .
 docker build -t ghostwire:wifi   -f Dockerfile.total --target wifi .
 docker build -t ghostwire:net    -f Dockerfile.total --target net .
@@ -195,7 +216,7 @@ docker build -t ghostwire:mobile -f Dockerfile.total --target mobile .
 docker build -t ghostwire:ad     -f Dockerfile.total --target ad .
 docker build -t ghostwire:total  -f Dockerfile.total --target total .
 
-# Run (Linux host with local SOCKS)
+# run (Linux host with local SOCKS)
 mkdir -p artifacts
 docker run --rm -it --network host \
   -e SOCKS5_HOST=127.0.0.1 -e SOCKS5_PORT=1080 \
@@ -212,12 +233,12 @@ docker run --rm -it --network host \
 
 ```bash
 mkdir -p artifacts
-# optional (Linux only): add network_mode: "host" under 'total' in compose
+# optional (Linux only): add network_mode: "host" under 'total'
 docker compose up -d total
 docker compose exec total bash
 ```
 
-### B) Compose on Docker Desktop (Mac/Windows)
+### B) Docker Desktop (Mac/Windows)
 
 ```bash
 mkdir -p artifacts
@@ -240,7 +261,7 @@ gw-usb-capture  usbmon0 /shared/usb.pcap
 ### D) GPU cracking (Linux / WSL2)
 
 ```yaml
-# in compose, under the 'total' service:
+# add under the 'total' service (Compose):
 gpus: "all"
 ```
 
@@ -382,31 +403,31 @@ volatility3 --help | head -n 1
 
 ## 🔧 Build args, env & volumes
 
-* **Build args**: `BASE_IMAGE=ubuntu:24.04`, `SECLISTS_SHA=HEAD`, feature flags `ENABLE_POWERSPLOIT`, `ENABLE_EMPIRE`, `ENABLE_CLOUDMAPPER`, `ENABLE_MOBSF`
-* **Environment**: `SOCKS5_HOST` (default `127.0.0.1`), `SOCKS5_PORT` (default `1080`), `SECLISTS=/opt/seclists`, `ARTIFACTS=/shared`
-* **Volumes**: `VOLUME ["/shared", "/work"]`
-* **Healthcheck**: verifies `nmap`, `hashcat`, `python3` reachability
+* **Build args:** `BASE_IMAGE=ubuntu:24.04`, `SECLISTS_SHA=HEAD`, feature flags `ENABLE_POWERSPLOIT`, `ENABLE_EMPIRE`, `ENABLE_CLOUDMAPPER`, `ENABLE_MOBSF`
+* **Environment:** `SOCKS5_HOST` (default `127.0.0.1`), `SOCKS5_PORT` (default `1080`), `SECLISTS=/opt/seclists`, `ARTIFACTS=/shared`
+* **Volumes:** `VOLUME ["/shared", "/work"]`
+* **Healthcheck:** verifies `nmap`, `hashcat`, `python3` reachability
 
 ---
 
 ## 🔄 Updating
 
-* **SecLists**: `update-seclists`
-* **APT tools**:
+* **SecLists:** `update-seclists`
+* **APT tools:**
 
   ```bash
   sudo apt-get update && sudo apt-get install --only-upgrade \
     gobuster nikto sqlmap wfuzz whatweb wafw00f \
     nmap masscan hashcat john hydra python3-impacket
   ```
-* **Python tools**: rebuild the image to keep the venvs consistent.
+* **Python tools:** rebuild the image to keep the venvs consistent.
 
 ---
 
 ## 🆘 Troubleshooting
 
-* **“container name already in use”** — use a new name (e.g., `--name ghostwire2`) or remove the old one: `docker rm -f ghostwire`
-* **Windows path issues** — use `--mount` (shown above) or forward slashes in `-v` paths
+* **“container name already in use”** — pick a new name (e.g., `--name ghostwire2`) or remove the old: `docker rm -f ghostwire`
+* **Windows path issues** — prefer `--mount` or forward slashes in `-v` paths
 * **No GPU devices** — ensure host drivers + `nvidia-container-toolkit` (Linux) or WSL2 GPU support (Windows), then run with `--gpus all`
 * **SOCKS not reachable** — on Docker Desktop, use `host.docker.internal` for the host IP
 
@@ -414,7 +435,7 @@ volatility3 --help | head -n 1
 
 ## ✅ Intended use
 
-**Red team / pentest / DFIR / training only—on systems you own or have explicit written permission to test.**
+**Red team / pentest / DFIR / training only — on systems you own or have explicit written permission to test.**
 You are responsible for complying with laws, contracts, and your Rules of Engagement.
 
 ---
@@ -437,3 +458,8 @@ OCI labels are included in the image metadata.
 * Added: Python venv tools (`pypykatz`, `arjun`, `commix`, `volatility3`, `objection`, `frida-tools`, `NetExec`)
 * Added: Go recon stack (`ffuf`, `nuclei`, `jaeles`, `amass`, `subfinder`, `httpx`, `dnsx`, `katana`, `waybackurls`, `anew`, `unfurl`, `s3scanner`, `kerbrute`, `gitleaks`)
 * Added: `Trivy`, `AWS CLI v2`, impacket wrappers, `linpeas.sh`, helpers
+
+```
+
+::contentReference[oaicite:0]{index=0}
+```
