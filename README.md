@@ -459,7 +459,6 @@ OCI labels are included in the image metadata.
 * Added: Go recon stack (`ffuf`, `nuclei`, `jaeles`, `amass`, `subfinder`, `httpx`, `dnsx`, `katana`, `waybackurls`, `anew`, `unfurl`, `s3scanner`, `kerbrute`, `gitleaks`)
 * Added: `Trivy`, `AWS CLI v2`, impacket wrappers, `linpeas.sh`, helpers
 
-```
 
-::contentReference[oaicite:0]{index=0}
-```
+
+
