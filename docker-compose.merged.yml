@@ -1,4 +1,4 @@
-﻿name: ghostwire
+name: ghostwire
 
 volumes:
   shared: {}
@@ -13,6 +13,9 @@ services:
         BASE_IMAGE: ${BASE_IMAGE}
     image: ${IMAGE_PREFIX:-local}/ghostwire:web
     command: ["/bin/bash","-lc","session-log"]
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
       TZ: ${TZ}
       LC_ALL: ${LC_ALL}
@@ -32,6 +35,9 @@ services:
         BASE_IMAGE: ${BASE_IMAGE}
     image: ${IMAGE_PREFIX:-local}/ghostwire:net
     command: ["/bin/bash","-lc","session-log"]
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
       TZ: ${TZ}
       LC_ALL: ${LC_ALL}
@@ -51,6 +57,9 @@ services:
         BASE_IMAGE: ${BASE_IMAGE}
     image: ${IMAGE_PREFIX:-local}/ghostwire:wifi
     command: ["/bin/bash","-lc","session-log"]
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
       TZ: ${TZ}
       LC_ALL: ${LC_ALL}
@@ -70,6 +79,9 @@ services:
         BASE_IMAGE: ${BASE_IMAGE}
     image: ${IMAGE_PREFIX:-local}/ghostwire:mobile
     command: ["/bin/bash","-lc","session-log"]
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
       TZ: ${TZ}
       LC_ALL: ${LC_ALL}
@@ -89,6 +101,9 @@ services:
         BASE_IMAGE: ${BASE_IMAGE}
     image: ${IMAGE_PREFIX:-local}/ghostwire:ad
     command: ["/bin/bash","-lc","session-log"]
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
       TZ: ${TZ}
       LC_ALL: ${LC_ALL}
@@ -108,6 +123,9 @@ services:
         BASE_IMAGE: ${BASE_IMAGE}
     image: ${IMAGE_PREFIX:-local}/ghostwire:total
     command: ["/bin/bash","-lc","/bin/bash"]
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
       TZ: ${TZ}
       LC_ALL: ${LC_ALL}
