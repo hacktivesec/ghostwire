@@ -1,5 +1,18 @@
 # syntax=docker/dockerfile:1
 ARG BASE_IMAGE=ubuntu:24.04
+
+# --- Stage -1 (optional): normalize CRLF->LF for files from build context ---
+FROM ${BASE_IMAGE} AS crlf_normalizer
+ENV DEBIAN_FRONTEND=noninteractive
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends dos2unix; \
+    rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+# (optional) COPY your potentially-CRLF files here and normalize them:
+# COPY ./scripts/ /src/scripts/
+# RUN find /src -type f -print0 | xargs -0 -r dos2unix --
+
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.title="ghostwire-net" \
@@ -150,6 +163,17 @@ PROMPT_COMMAND=ghost_prompt
 PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;34m\]ghostwire-net\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GHOST_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "
 echo "[net] Tools: nmap, masscan, tshark, chisel, openvpn, wireguard, dnsx, httpx"
 PSH
+
+# ---- CRLF guard (normalize any accidental Windows line endings) ----
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends dos2unix; \
+    git config --system core.autocrlf false || true; \
+    find /usr/local/bin -type f -print0 | xargs -0 -r dos2unix --; \
+    find /opt -type f \( -name '*.sh' -o -name '*.py' -o -name '*.service' -o -name '*.conf' -o -name '*.ps1' -o -name '*.psm1' -o -name '*.psd1' -o -name '*.cmd' -o -name '*.bat' \) -print0 | xargs -0 -r dos2unix --; \
+    find /etc/profile.d -type f -name '*.sh' -print0 | xargs -0 -r dos2unix --; \
+    apt-get purge -y dos2unix; \
+    rm -rf /var/lib/apt/lists/*
 
 # ---- Non-root user ----
 RUN groupadd -r ghost && useradd -m -g ghost -s /bin/bash ghost && \
