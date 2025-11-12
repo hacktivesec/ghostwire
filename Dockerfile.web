@@ -11,7 +11,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     ARTIFACTS=/shared \
-    TERM=xterm-256color
+    TERM=xterm-256color \ 
+    SOCKS5_HOST=127.0.0.1 \
+    SOCKS5_PORT=1080
 
 # ---- Core OS packages ----
 RUN set -eux; \
