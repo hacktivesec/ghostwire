@@ -459,9 +459,13 @@ OCI labels are included in the image metadata.
 * Added: Go recon stack (`ffuf`, `nuclei`, `jaeles`, `amass`, `subfinder`, `httpx`, `dnsx`, `katana`, `waybackurls`, `anew`, `unfurl`, `s3scanner`, `kerbrute`, `gitleaks`)
 * Added: `Trivy`, `AWS CLI v2`, impacket wrappers, `linpeas.sh`, helpers
 
+Here is the full translation in clean, polished English — formatted exactly as a `.md` file, ready to drop into the repository:
+
+---
+
 # ghostwire – Dependencies
 
-Questo file riepiloga le principali dipendenze usate da `Dockerfile.total`.
+This file summarizes the main dependencies used in `Dockerfile.total`.
 
 ---
 
@@ -469,244 +473,251 @@ Questo file riepiloga le principali dipendenze usate da `Dockerfile.total`.
 
 Base image: `ubuntu:24.04`
 
-Tooling di base e sistema:
+Core system & tooling:
 
-- `ca-certificates`, `tzdata`, `curl`, `wget`, `git`, `jq`, `sudo`
-- `nano`, `less`, `bash-completion`
-- `python3`, `python3-pip`, `python3-venv`
-- `ripgrep`, `fd-find`, `fzf`, `whois`, `tree`, `rsync`, `bat`
-- `proxychains4`, `openssh-client`
-- `unzip`, `zip`, `procps`, `tini`, `tar`
-- `iw`, `wireless-tools`, `usbutils`, `kmod`
+* `ca-certificates`, `tzdata`, `curl`, `wget`, `git`, `jq`, `sudo`
+* `nano`, `less`, `bash-completion`
+* `python3`, `python3-pip`, `python3-venv`
+* `ripgrep`, `fd-find`, `fzf`, `whois`, `tree`, `rsync`, `bat`
+* `proxychains4`, `openssh-client`
+* `unzip`, `zip`, `procps`, `tini`, `tar`
+* `iw`, `wireless-tools`, `usbutils`, `kmod`
 
 Web:
 
-- `gobuster`
-- `nikto`
-- `sqlmap`
-- `whatweb`
-- `wafw00f`
+* `gobuster`
+* `nikto`
+* `sqlmap`
+* `whatweb`
+* `wafw00f`
 
-Network / infra:
+Network / infrastructure:
 
-- `nmap`
-- `dnsutils`
-- `iputils-ping`
-- `traceroute`
-- `netcat-openbsd`
-- `socat`
-- `tcpdump`
-- `iproute2`
-- `openssl`
+* `nmap`
+* `dnsutils`
+* `iputils-ping`
+* `traceroute`
+* `netcat-openbsd`
+* `socat`
+* `tcpdump`
+* `iproute2`
+* `openssl`
 
-AD / auth:
+Active Directory / authentication:
 
-- `samba-common-bin`
-- `krb5-user`
-- `ldap-utils`
-- `smbclient`
-- `python3-impacket`
+* `samba-common-bin`
+* `krb5-user`
+* `ldap-utils`
+* `smbclient`
+* `python3-impacket`
 
 Cracking:
 
-- `hashcat`
-- `ocl-icd-libopencl1`
-- `pocl-opencl-icd`
-- `clinfo`
-- `john`
-- `hydra`
+* `hashcat`
+* `ocl-icd-libopencl1`
+* `pocl-opencl-icd`
+* `clinfo`
+* `john`
+* `hydra`
 
-Extra network / service:
+Extra network / service tools:
 
-- `snmp`
-- `ike-scan`
-- `patator`
+* `snmp`
+* `ike-scan`
+* `patator`
 
 Wireless:
 
-- `aircrack-ng`
-- `reaver`
+* `aircrack-ng`
+* `reaver`
 
-Stego / forensics:
+Steganography / forensics:
 
-- `steghide`
-- `libimage-exiftool-perl`
-- `binwalk`
-- `foremost`
+* `steghide`
+* `libimage-exiftool-perl`
+* `binwalk`
+* `foremost`
 
 Mobile:
 
-- `apktool`
+* `apktool`
 
 WPScan dependencies:
 
-- `libcurl4-openssl-dev`
-- `libcurl4`
+* `libcurl4-openssl-dev`
+* `libcurl4`
 
 Perl / joomscan:
 
-- `perl`
-- `libwww-perl`
-- `liblwp-protocol-https-perl`
+* `perl`
+* `libwww-perl`
+* `liblwp-protocol-https-perl`
 
 Java / jadx:
 
-- `default-jre-headless`
-- `unzip` (già installato in precedenza)
+* `default-jre-headless`
+* `unzip` (already installed earlier)
 
-Build tools temporanei (rimossi a fine build):
+Temporary build tools (removed later):
 
-- `python3-dev`
-- `build-essential`
-- `golang-go`
-- `libpcap0.8-dev`
-- `pkg-config`
-- `ruby-full`
+* `python3-dev`
+* `build-essential`
+* `golang-go`
+* `libpcap0.8-dev`
+* `pkg-config`
+* `ruby-full`
 
 ---
 
-## Python (venv principale `/opt/ghost-venv`)
+## Python (main venv `/opt/ghost-venv`)
 
-Librerie HTTP / utility:
+HTTP libraries / utilities:
 
-- `httpx[socks]`
-- `httpx-ntlm`
-- `requests`
-- `requests-ntlm`
-- `requests-toolbelt`
-- `PySocks`
+* `httpx[socks]`
+* `httpx-ntlm`
+* `requests`
+* `requests-ntlm`
+* `requests-toolbelt`
+* `PySocks`
 
-Template / crypto / parsing:
+Templating / crypto / parsing:
 
-- `jinja2`
-- `markupsafe`
-- `cryptography`
-- `cffi`
-- `pyopenssl`
-- `colorama`
-- `beautifulsoup4`
-- `defusedxml`
-- `pyparsing`
+* `jinja2`
+* `markupsafe`
+* `cryptography`
+* `cffi`
+* `pyopenssl`
+* `colorama`
+* `beautifulsoup4`
+* `defusedxml`
+* `pyparsing`
 
-Database:
+Databases:
 
-- `psycopg[binary]`
-- `mysql-connector-python`
+* `psycopg[binary]`
+* `mysql-connector-python`
 
-AD / network:
+Active Directory / network tooling:
 
-- `ldapdomaindump`
-- `bloodhound`
-- `smbmap`
-- `sslyze==6.2.0`
+* `ldapdomaindump`
+* `bloodhound`
+* `smbmap`
+* `sslyze==6.2.0`
 
-Forensics / post-ex / altri tool:
+Forensics / post-ex / other tools:
 
-- `pypykatz`
-- `arjun`
-- `commix`
-- `volatility3`
-- `objection`
-- `frida-tools`
+* `pypykatz`
+* `arjun`
+* `commix`
+* `volatility3`
+* `objection`
+* `frida-tools`
 
 SecretFinder:
 
-- repo: `https://github.com/m4ll0k/SecretFinder`
-- requirements da `requirements.txt` del progetto
+* repo: `https://github.com/m4ll0k/SecretFinder`
+* requirements pulled from the project’s `requirements.txt`
 
 ---
 
-## Python (venv NetExec `/opt/nxc-venv`)
+## Python (NetExec venv `/opt/nxc-venv`)
 
-- `NetExec` installato da:
-  - `git+https://github.com/Pennyw0rth/NetExec`
+* `NetExec` installed from:
+
+  * `git+https://github.com/Pennyw0rth/NetExec`
 
 ---
 
 ## Ruby (gems)
 
-- `evil-winrm`
-- `wpscan` (esposto anche come wrapper `wp`)
+* `evil-winrm`
+* `wpscan` (also exposed via the wrapper command `wp`)
 
 ---
 
-## Go tools (installati in `/usr/local/bin`)
+## Go tools (installed into `/usr/local/bin`)
 
-Installati via `go install`:
+Installed using `go install`:
 
-- `github.com/ffuf/ffuf/v2`
-- `github.com/projectdiscovery/nuclei/v3/cmd/nuclei`
-- `github.com/jaeles-project/jaeles`
-- `github.com/owasp-amass/amass/v4/...`
-- `github.com/projectdiscovery/subfinder/v2/cmd/subfinder`
-- `github.com/projectdiscovery/httpx/cmd/httpx`
-- `github.com/projectdiscovery/dnsx/cmd/dnsx`
-- `github.com/projectdiscovery/katana/cmd/katana`
-- `github.com/tomnomnom/waybackurls`
-- `github.com/tomnomnom/anew`
-- `github.com/tomnomnom/unfurl`
-- `github.com/sa7mon/s3scanner`
-- `github.com/ropnop/kerbrute`
-- `github.com/zricethezav/gitleaks/v8`
+* `github.com/ffuf/ffuf/v2`
+* `github.com/projectdiscovery/nuclei/v3/cmd/nuclei`
+* `github.com/jaeles-project/jaeles`
+* `github.com/owasp-amass/amass/v4/...`
+* `github.com/projectdiscovery/subfinder/v2/cmd/subfinder`
+* `github.com/projectdiscovery/httpx/cmd/httpx`
+* `github.com/projectdiscovery/dnsx/cmd/dnsx`
+* `github.com/projectdiscovery/katana/cmd/katana`
+* `github.com/tomnomnom/waybackurls`
+* `github.com/tomnomnom/anew`
+* `github.com/tomnomnom/unfurl`
+* `github.com/sa7mon/s3scanner`
+* `github.com/ropnop/kerbrute`
+* `github.com/zricethezav/gitleaks/v8`
 
-Il toolchain `golang-go` viene rimosso al termine dell’installazione.
-
----
-
-## Strumenti esterni clonati / scaricati
-
-Build stage bulk_extractor:
-
-- `bulk_extractor` (da `https://github.com/simsong/bulk_extractor`), compilato nello stage `bulkbuilder` e copiato in `/usr/local/`.
-
-Clonati in `/opt`:
-
-- `enum4linux` – `https://github.com/portcullislabs/enum4linux`
-- `joomscan` – `https://github.com/OWASP/joomscan`
-- `SecretFinder` – `https://github.com/m4ll0k/SecretFinder`
-- (opzionali, via build-arg):
-  - `PowerSploit` – `https://github.com/PowerShellMafia/PowerSploit`
-  - `Empire` – `https://github.com/BC-SECURITY/Empire`
-  - `cloudmapper` – `https://github.com/duo-labs/cloudmapper`
-  - `MobSF` – `https://github.com/MobSF/Mobile-Security-Framework-MobSF`
-
-Jadx:
-
-- zip da `https://github.com/skylot/jadx/releases/download/v1.5.0/jadx-1.5.0.zip`
-- installato in `/opt/jadx`, wrapper `jadx` e `jadx-gui` in `/usr/local/bin`.
-
-Trivy:
-
-- installato tramite script ufficiale:
-  - `https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh`
-
-AWS CLI v2:
-
-- installer ufficiale:
-  - `https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip` (amd64)
-  - `https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip` (arm64)
-
-linPEAS:
-
-- `linpeas.sh` da:
-  - `https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh`
-
-SecLists:
-
-- `https://github.com/danielmiessler/SecLists` (checkout in `/opt/seclists`)
+The `golang-go` toolchain is removed after installation.
 
 ---
 
-## Feature flag opzionali
+## External tools cloned / downloaded
 
-Abilitabili tramite build args:
+**bulk_extractor build stage:**
 
-- `ENABLE_POWERSPLOIT=1` → clona `PowerSploit` in `/opt/PowerSploit`
-- `ENABLE_EMPIRE=1` → clona `Empire` in `/opt/empire`
-- `ENABLE_CLOUDMAPPER=1` → clona `cloudmapper` in `/opt/cloudmapper`
-- `ENABLE_MOBSF=1` → clona `MobSF` in `/opt/mobsf`
+* `bulk_extractor` from
+  `https://github.com/simsong/bulk_extractor`
+  compiled in the `bulkbuilder` stage and copied into `/usr/local/`.
+
+Cloned into `/opt`:
+
+* `enum4linux` – `https://github.com/portcullislabs/enum4linux`
+* `joomscan` – `https://github.com/OWASP/joomscan`
+* `SecretFinder` – `https://github.com/m4ll0k/SecretFinder`
+
+Optional (via build args):
+
+* `PowerSploit` – `https://github.com/PowerShellMafia/PowerSploit`
+* `Empire` – `https://github.com/BC-SECURITY/Empire`
+* `cloudmapper` – `https://github.com/duo-labs/cloudmapper`
+* `MobSF` – `https://github.com/MobSF/Mobile-Security-Framework-MobSF`
+
+**Jadx:**
+
+* from release zip:
+  `https://github.com/skylot/jadx/releases/download/v1.5.0/jadx-1.5.0.zip`
+* installed to `/opt/jadx`, with wrappers `jadx` and `jadx-gui` in `/usr/local/bin`.
+
+**Trivy:**
+
+* installed via official script:
+  `https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh`
+
+**AWS CLI v2:**
+
+* official installer:
+
+  * `https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip` (amd64)
+  * `https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip` (arm64)
+
+**linPEAS:**
+
+* `linpeas.sh` from
+  `https://github.com/carlospolop/PEASS-ng/releases/latest/download/linpeas.sh`
+
+**SecLists:**
+
+* `https://github.com/danielmiessler/SecLists`
+  checked out into `/opt/seclists`
 
 ---
 
+## Optional feature flags
+
+Enable via build args:
+
+* `ENABLE_POWERSPLOIT=1` → clones `PowerSploit` into `/opt/PowerSploit`
+* `ENABLE_EMPIRE=1` → clones `Empire` into `/opt/empire`
+* `ENABLE_CLOUDMAPPER=1` → clones `cloudmapper` into `/opt/cloudmapper`
+* `ENABLE_MOBSF=1` → clones `MobSF` into `/opt/mobsf`
+
+---
 
 
