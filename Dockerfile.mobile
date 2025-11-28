@@ -75,6 +75,21 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*
 
 # -------------------------------------------------------------------
+# IPATool - iOS App Store downloader
+# -------------------------------------------------------------------
+RUN set -eux; \
+    IPATOOL_VERSION="2.2.0"; \
+    mkdir -p /opt/ipatool-src; \
+    cd /opt/ipatool-src; \
+    git init; \
+    git remote add origin https://github.com/majd/ipatool; \
+    git fetch --depth 1 origin "v${IPATOOL_VERSION}"; \
+    git checkout FETCH_HEAD; \
+    go build -o /usr/local/bin/ipatool .; \
+    cd /; \
+    rm -rf /opt/ipatool-src /root/go/pkg/mod /root/.cache/go-build
+
+# -------------------------------------------------------------------
 # JADX (CLI) - Android decompilation
 # -------------------------------------------------------------------
 RUN set -eux; \
@@ -210,7 +225,7 @@ RUN set -eux; \
     'PROMPT_COMMAND=ghost_prompt' \
     'PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;35m\]ghostwire-mobile\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GHOST_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "' \
     'echo "[mobile] Android: jadx, apkid, objection, adb, aapt, androguard"' \
-    'echo "[mobile] iOS: idevice, radare2, objection, mobsf, frida"' \
+    'echo "[mobile] iOS: idevice, radare2, objection, mobsf, frida, ipatool"' \
     > /etc/profile.d/ghostwire-mobile.sh && chmod 0644 /etc/profile.d/ghostwire-mobile.sh
 
 # -------------------------------------------------------------------
