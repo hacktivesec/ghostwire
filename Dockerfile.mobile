@@ -3,7 +3,7 @@
 ARG BASE_IMAGE=ubuntu:24.04
 
 # ---- Stage 0: compile Go tools ----
-FROM golang:1.23-bookworm AS gobuilder
+FROM golang:1.24-bookworm AS gobuilder
 RUN set -eux; \
     git clone --depth=1 -b v2.2.0 https://github.com/majd/ipatool /src/ipatool; \
     cd /src/ipatool; \

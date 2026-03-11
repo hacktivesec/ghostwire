@@ -23,8 +23,8 @@ RUN set -eux; \
   rm -rf /var/lib/apt/lists/*
 
 # ---- Stage 1: compile Go tools ----
-FROM golang:1.23-bookworm AS gobuilder
-ENV CGO_ENABLED=0
+FROM golang:1.24-bookworm AS gobuilder
+ENV CGO_ENABLED=0 GOTOOLCHAIN=auto
 RUN go install github.com/ropnop/kerbrute@v1.0.3
 
 ############################

@@ -2,8 +2,8 @@
 ARG BASE_IMAGE=ubuntu:24.04
 
 # ---- Stage 0: compile Go tools ----
-FROM golang:1.23-bookworm AS gobuilder
-ENV CGO_ENABLED=0
+FROM golang:1.24-bookworm AS gobuilder
+ENV GOTOOLCHAIN=auto
 RUN set -eux; \
     go install github.com/ffuf/ffuf/v2@v2.1.0; \
     go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.7.1; \
@@ -14,7 +14,7 @@ RUN set -eux; \
     go install github.com/tomnomnom/gf@latest; \
     go install github.com/tomnomnom/unfurl@v0.4.3; \
     go install github.com/tomnomnom/qsreplace@v0.0.3; \
-    go install github.com/jaeles-project/jaeles@v0.17.1; \
+    go install github.com/jaeles-project/jaeles@latest; \
     go install github.com/jaeles-project/gospider@v1.1.6
 
 # ---- Stage 1: final image ----

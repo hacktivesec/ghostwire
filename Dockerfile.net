@@ -2,8 +2,8 @@
 ARG BASE_IMAGE=ubuntu:24.04
 
 # ---- Stage 0: compile Go tools ----
-FROM golang:1.23-bookworm AS gobuilder
-ENV CGO_ENABLED=0
+FROM golang:1.24-bookworm AS gobuilder
+ENV CGO_ENABLED=0 GOTOOLCHAIN=auto
 RUN set -eux; \
     go install github.com/jpillora/chisel@v1.11.5; \
     go install github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.3; \
