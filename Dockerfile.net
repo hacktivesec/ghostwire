@@ -110,7 +110,8 @@ RUN groupadd -r ghost && useradd -m -g ghost -s /bin/bash ghost && \
     mkdir -p /work "${ARTIFACTS}" /opt/tools && \
     chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools /opt/ghost-venv && \
     printf 'ghost ALL=(ALL) NOPASSWD: /usr/sbin/tcpdump, /sbin/ip, /usr/bin/tshark\n' > /etc/sudoers.d/ghost && \
-    chmod 0440 /etc/sudoers.d/ghost
+    chmod 0440 /etc/sudoers.d/ghost && \
+    echo '. /etc/profile.d/ghostwire.sh' >> /home/ghost/.bashrc
 
 USER ghost
 WORKDIR /work

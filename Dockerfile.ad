@@ -244,7 +244,8 @@ RUN set -eux; \
     mkdir -p /work "${ARTIFACTS}" /opt/tools; \
     chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools /opt/ghost-venv /opt/nxc-venv /opt/google-cloud-sdk "${SECLISTS}" /opt/enum4linux-ng /opt/pacu /opt/coercer /opt/Responder; \
     printf 'ghost ALL=(ALL) NOPASSWD: /usr/sbin/tcpdump, /sbin/ip, /usr/bin/tshark\n' > /etc/sudoers.d/ghost; \
-    chmod 0440 /etc/sudoers.d/ghost
+    chmod 0440 /etc/sudoers.d/ghost; \
+    echo '. /etc/profile.d/ghostwire-ad.sh' >> /home/ghost/.bashrc
 
 USER ghost
 WORKDIR /work

@@ -99,7 +99,8 @@ COPY scripts/ghostwire-web.profile.sh /etc/profile.d/ghostwire-web.sh
 # ---- Non-root user ----
 RUN groupadd -r ghost && useradd -m -r -g ghost -s /bin/bash ghost && \
     mkdir -p /work "${ARTIFACTS}" /opt/tools && \
-    chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools /opt/ghost-venv "${SECLISTS}" /opt/xsstrike /opt/testssl
+    chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools /opt/ghost-venv "${SECLISTS}" /opt/xsstrike /opt/testssl && \
+    echo '. /etc/profile.d/ghostwire-web.sh' >> /home/ghost/.bashrc
 
 USER ghost
 WORKDIR /work

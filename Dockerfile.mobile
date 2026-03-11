@@ -143,7 +143,8 @@ RUN set -eux; \
     mkdir -p /work "${ARTIFACTS}"; \
     chown -R ghost:ghost /work "${ARTIFACTS}" /opt/ghost-venv /opt/jadx /opt/mobsf; \
     printf 'ghost ALL=(ALL) NOPASSWD: /usr/bin/adb\n' > /etc/sudoers.d/ghost; \
-    chmod 0440 /etc/sudoers.d/ghost
+    chmod 0440 /etc/sudoers.d/ghost; \
+    echo '. /etc/profile.d/ghostwire-mobile.sh' >> /home/ghost/.bashrc
 
 USER ghost
 WORKDIR /work
