@@ -1,6 +1,15 @@
 # syntax=docker/dockerfile:1
 
 ARG BASE_IMAGE=ubuntu:24.04
+
+# ---- Stage 0: compile Go tools ----
+FROM golang:1.23-bookworm AS gobuilder
+RUN set -eux; \
+    git clone --depth=1 -b v2.2.0 https://github.com/majd/ipatool /src/ipatool; \
+    cd /src/ipatool; \
+    go build -o /go/bin/ipatool .
+
+# ---- Stage 1: final image ----
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.title="ghostwire-mobile" \
@@ -53,21 +62,11 @@ RUN set -eux; \
 # ---- radare2 + nmap ----
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends golang-go nmap radare2; \
+    apt-get install -y --no-install-recommends nmap radare2; \
     rm -rf /var/lib/apt/lists/*
 
-# ---- IPATool (iOS App Store downloader) ----
-RUN set -eux; \
-    IPATOOL_VERSION="2.2.0"; \
-    mkdir -p /opt/ipatool-src; \
-    cd /opt/ipatool-src; \
-    git init; \
-    git remote add origin https://github.com/majd/ipatool; \
-    git fetch --depth 1 origin "v${IPATOOL_VERSION}"; \
-    git checkout FETCH_HEAD; \
-    go build -o /usr/local/bin/ipatool .; \
-    cd /; \
-    rm -rf /opt/ipatool-src /root/go/pkg/mod /root/.cache/go-build
+# ---- Go tools from builder stage ----
+COPY --from=gobuilder /go/bin/ipatool /usr/local/bin/ipatool
 
 # ---- JADX ----
 RUN set -eux; \

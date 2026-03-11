@@ -1,5 +1,23 @@
 # syntax=docker/dockerfile:1
 ARG BASE_IMAGE=ubuntu:24.04
+
+# ---- Stage 0: compile Go tools ----
+FROM golang:1.23-bookworm AS gobuilder
+ENV CGO_ENABLED=0
+RUN set -eux; \
+    go install github.com/ffuf/ffuf/v2@v2.1.0; \
+    go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.7.1; \
+    go install github.com/projectdiscovery/httpx/cmd/httpx@v1.9.0; \
+    go install github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.3; \
+    go install github.com/projectdiscovery/katana/cmd/katana@v1.5.0; \
+    go install github.com/tomnomnom/waybackurls@v0.1.0; \
+    go install github.com/tomnomnom/gf@latest; \
+    go install github.com/tomnomnom/unfurl@v0.4.3; \
+    go install github.com/tomnomnom/qsreplace@v0.0.3; \
+    go install github.com/jaeles-project/jaeles@v0.17.1; \
+    go install github.com/jaeles-project/gospider@v1.1.6
+
+# ---- Stage 1: final image ----
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.title="ghostwire-web" \
@@ -56,24 +74,8 @@ RUN set -eux; \
     ln -s /opt/testssl/testssl.sh /usr/local/bin/testssl; \
     chmod +x /usr/local/bin/testssl
 
-# ---- Go web tools (each || true so one failure doesn't block the rest) ----
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends golang-go; \
-    export GOBIN=/usr/local/bin; \
-    go install github.com/ffuf/ffuf/v2@latest || true; \
-    go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest || true; \
-    go install github.com/projectdiscovery/httpx/cmd/httpx@latest || true; \
-    go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest || true; \
-    go install github.com/projectdiscovery/katana/cmd/katana@latest || true; \
-    go install github.com/tomnomnom/waybackurls@latest || true; \
-    go install github.com/tomnomnom/gf@latest || true; \
-    go install github.com/tomnomnom/unfurl@latest || true; \
-    go install github.com/tomnomnom/qsreplace@latest || true; \
-    go install github.com/jaeles-project/jaeles@latest || true; \
-    go install github.com/jaeles-project/gospider@latest || true; \
-    apt-get purge -y --auto-remove golang-go; \
-    rm -rf /root/go /var/lib/apt/lists/*
+# ---- Go tools from builder stage ----
+COPY --from=gobuilder /go/bin/ /usr/local/bin/
 
 # ---- PATH shims for venv tools ----
 RUN set -eux; \

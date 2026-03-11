@@ -8,6 +8,12 @@ x-common: &common
     - ./artifacts:/shared
   tty: true
   stdin_open: true
+  environment: &common-env
+    SOCKS5_HOST: ${SOCKS5_HOST:-127.0.0.1}
+    SOCKS5_PORT: ${SOCKS5_PORT:-1080}
+  networks:
+    - default
+    - vpn
 
 services:
   web:
@@ -17,6 +23,7 @@ services:
       dockerfile: Dockerfile.web
     container_name: ghostwire-web
     environment:
+      <<: *common-env
       GHOST_LABEL: web
 
   net:
@@ -26,6 +33,7 @@ services:
       dockerfile: Dockerfile.net
     container_name: ghostwire-net
     environment:
+      <<: *common-env
       GHOST_LABEL: network
 
   wifi:
@@ -36,6 +44,7 @@ services:
     container_name: ghostwire-wifi
     cap_add: ["NET_RAW", "NET_ADMIN"]
     environment:
+      <<: *common-env
       GHOST_LABEL: wifi
 
   mobile:
@@ -45,6 +54,7 @@ services:
       dockerfile: Dockerfile.mobile
     container_name: ghostwire-mobile
     environment:
+      <<: *common-env
       GHOST_LABEL: mobile
 
   ad:
@@ -54,5 +64,12 @@ services:
       dockerfile: Dockerfile.ad
     container_name: ghostwire-ad
     environment:
+      <<: *common-env
       GHOST_LABEL: ad
+
+networks:
+  default:
+  vpn:
+    external: true
+    name: ${VPN_NETWORK:-vpn}
 

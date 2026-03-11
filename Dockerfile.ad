@@ -22,8 +22,13 @@ RUN set -eux; \
   make install DESTDIR=/opt/be-install; \
   rm -rf /var/lib/apt/lists/*
 
+# ---- Stage 1: compile Go tools ----
+FROM golang:1.23-bookworm AS gobuilder
+ENV CGO_ENABLED=0
+RUN go install github.com/ropnop/kerbrute@v1.0.3
+
 ############################
-# Stage 1: AD & Cloud image
+# Stage 2: AD & Cloud image
 ############################
 FROM ${BASE_IMAGE} AS base
 
@@ -60,7 +65,6 @@ RUN set -eux; \
       nmap dnsutils iputils-ping traceroute netcat-openbsd socat tcpdump iproute2 openssl \
       # Cracking
       hashcat ocl-icd-libopencl1 pocl-opencl-icd clinfo john hydra \
-      golang-go \
       # QoL
       ripgrep fd-find fzf tree rsync bat proxychains4 openssh-client unzip zip procps tini tar; \
     ln -s /usr/bin/fdfind /usr/local/bin/fd || true; \
@@ -112,11 +116,8 @@ RUN set -eux; \
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/mitm6 "$@"' > /usr/local/bin/mitm6; \
   chmod +x /usr/local/bin/mitm6
 
-# ---- Kerbrute ----
-RUN set -eux; \
-    export GO111MODULE=on GOBIN=/usr/local/bin; \
-    go install github.com/ropnop/kerbrute@latest; \
-    command -v /usr/local/bin/kerbrute >/dev/null
+# ---- Go tools from builder stage ----
+COPY --from=gobuilder /go/bin/ /usr/local/bin/
 
 # ---- Azure CLI ----
 RUN set -eux; \

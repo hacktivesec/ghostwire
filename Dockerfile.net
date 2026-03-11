@@ -1,5 +1,15 @@
 # syntax=docker/dockerfile:1
 ARG BASE_IMAGE=ubuntu:24.04
+
+# ---- Stage 0: compile Go tools ----
+FROM golang:1.23-bookworm AS gobuilder
+ENV CGO_ENABLED=0
+RUN set -eux; \
+    go install github.com/jpillora/chisel@v1.11.5; \
+    go install github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.3; \
+    go install github.com/projectdiscovery/httpx/cmd/httpx@v1.9.0
+
+# ---- Stage 1: final image ----
 FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.title="ghostwire-net" \
@@ -49,16 +59,8 @@ RUN python3 -m venv /opt/ghost-venv && \
     /opt/ghost-venv/bin/pip install --no-cache-dir \
       scapy impacket requests PySocks
 
-# ---- Go tools (chisel + discovery) ----
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends golang-go; \
-    export GOBIN=/usr/local/bin; \
-    go install github.com/jpillora/chisel@latest || true; \
-    go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest || true; \
-    go install github.com/projectdiscovery/httpx/cmd/httpx@latest || true; \
-    apt-get purge -y --auto-remove golang-go; \
-    rm -rf /root/go /home/*/go /var/lib/apt/lists/*
+# ---- Go tools from builder stage ----
+COPY --from=gobuilder /go/bin/ /usr/local/bin/
 
 # ---- Network helper scripts ----
 RUN set -eux; \

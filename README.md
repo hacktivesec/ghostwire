@@ -136,6 +136,31 @@ wifi-capture wlan0
 
 ## Using the SOCKS pivot
 
+### Linking to a VPN jumpbox
+
+If you run a VPN container (e.g. a SOCKS5 proxy on port `1080`), ghostwire can reach it over a shared Docker network:
+
+```bash
+# 1. Create the shared network (once)
+docker network create vpn
+
+# 2. Start your VPN container on that network
+docker run -d --name vpn-jumpbox --network vpn \
+  -p 127.0.0.1:1080:1080 your-vpn-image
+
+# 3. Point ghostwire at it (in .env)
+VPN_NETWORK=vpn
+SOCKS5_HOST=vpn-jumpbox
+SOCKS5_PORT=1080
+
+# 4. Start ghostwire — containers join the vpn network automatically
+docker compose up -d web
+```
+
+On Docker Desktop (Mac/Windows) without a shared network, use `SOCKS5_HOST=host.docker.internal` in `.env`.
+
+### Using the proxy
+
 **One-off via wrapper**
 
 ```bash

@@ -53,3 +53,11 @@ jobs:
       - name: Image size
         run: |
           docker images ghostwire:${{ matrix.variant }} --format '{{.Repository}}:{{.Tag}} {{.Size}}'
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghostwire:${{ matrix.variant }}
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: 0
