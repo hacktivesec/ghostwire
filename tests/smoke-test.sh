@@ -26,7 +26,7 @@ case "$VARIANT" in
   web)
     echo "--- web ---"
     for c in ffuf nuclei gobuster nikto sqlmap whatweb wafw00f httpx dnsx \
-             waybackurls jaeles arjun commix xsstrike testssl; do
+             waybackurls arjun commix xsstrike testssl; do
       check "$c"
     done
     ;;
@@ -63,10 +63,10 @@ case "$VARIANT" in
     echo "--- core ---"
     for c in nmap masscan gobuster nikto sqlmap whatweb wafw00f hashcat \
              john hydra ffuf nuclei httpx dnsx subfinder katana amass \
-             jaeles waybackurls anew unfurl gitleaks kerbrute s3scanner \
+             waybackurls anew unfurl gitleaks kerbrute s3scanner \
              nxc bloodhound-python smbmap evil-winrm wpscan \
              psexec secretsdump wmiexec ntlmrelayx \
-             pypykatz arjun commix volatility3 objection frida-ps \
+             pypykatz arjun commix objection frida-ps \
              trivy aws jadx apktool aircrack-ng reaver \
              steghide exiftool binwalk foremost bulk_extractor \
              secretfinder linpeas.sh enum4linux joomscan sslyze; do

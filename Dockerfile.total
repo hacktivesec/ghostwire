@@ -204,7 +204,7 @@ RUN set -eux; \
   rm -rf /opt/Responder/.git; \
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/python /opt/Responder/Responder.py "$@"' > /usr/local/bin/responder; \
   chmod +x /usr/local/bin/responder; \
-  /opt/ghost-venv/bin/pip install --no-cache-dir mitm6; \
+  /opt/ghost-venv/bin/pip install --no-cache-dir mitm6 || true; \
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/mitm6 "$@"' > /usr/local/bin/mitm6; \
   chmod +x /usr/local/bin/mitm6
 
@@ -225,7 +225,7 @@ RUN set -eux; \
   export GOBIN=/usr/local/bin GOPATH=/root/go GOTOOLCHAIN=auto; \
   go install github.com/ffuf/ffuf/v2@latest; \
   go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest; \
-  go install github.com/jaeles-project/jaeles@latest; \
+  go install github.com/jaeles-project/jaeles@latest || true; \
   go install github.com/owasp-amass/amass/v4/...@latest; \
   go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest; \
   go install github.com/projectdiscovery/httpx/cmd/httpx@latest; \

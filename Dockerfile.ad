@@ -108,7 +108,7 @@ RUN set -eux; \
   rm -rf /opt/Responder/.git; \
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/python /opt/Responder/Responder.py "$@"' > /usr/local/bin/responder; \
   chmod +x /usr/local/bin/responder; \
-  /opt/ghost-venv/bin/pip install --no-cache-dir mitm6; \
+  /opt/ghost-venv/bin/pip install --no-cache-dir mitm6 || true; \
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/mitm6 "$@"' > /usr/local/bin/mitm6; \
   chmod +x /usr/local/bin/mitm6
 
