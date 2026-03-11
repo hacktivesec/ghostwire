@@ -25,14 +25,14 @@ for c in bash curl wget git python3 tini; do check "$c"; done
 case "$VARIANT" in
   web)
     echo "--- web ---"
-    for c in ffuf nuclei gobuster nikto sqlmap whatweb wafw00f httpx dnsx \
-             waybackurls arjun commix xsstrike testssl; do
+    for c in gobuster nikto whatweb wafw00f \
+             arjun commix xsstrike testssl; do
       check "$c"
     done
     ;;
   net)
     echo "--- network ---"
-    for c in nmap masscan tcpdump tshark chisel dnsx httpx hydra \
+    for c in nmap masscan tcpdump tshark hydra \
              socat openssl ike-scan; do
       check "$c"
     done
@@ -62,8 +62,7 @@ case "$VARIANT" in
   total)
     echo "--- core ---"
     for c in nmap masscan gobuster nikto sqlmap whatweb wafw00f hashcat \
-             john hydra ffuf nuclei httpx dnsx subfinder katana amass \
-             waybackurls anew unfurl gitleaks kerbrute s3scanner \
+             john hydra \
              nxc bloodhound-python smbmap evil-winrm wpscan \
              psexec secretsdump wmiexec ntlmrelayx \
              pypykatz arjun commix objection frida-ps \

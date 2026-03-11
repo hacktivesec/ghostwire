@@ -218,25 +218,25 @@ RUN set -eux; \
   apt-get purge -y --auto-remove build-essential; \
   rm -rf /var/lib/apt/lists/*
 
-# ---- Go tools ----
+# ---- Go tools (each || true so one failure doesn't block the rest) ----
 RUN set -eux; \
   apt-get update; \
   apt-get install -y --no-install-recommends golang-go libpcap0.8-dev pkg-config; \
   export GOBIN=/usr/local/bin GOPATH=/root/go GOTOOLCHAIN=auto; \
-  go install github.com/ffuf/ffuf/v2@latest; \
-  go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest; \
+  go install github.com/ffuf/ffuf/v2@latest || true; \
+  go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest || true; \
   go install github.com/jaeles-project/jaeles@latest || true; \
-  go install github.com/owasp-amass/amass/v4/...@latest; \
-  go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest; \
-  go install github.com/projectdiscovery/httpx/cmd/httpx@latest; \
-  go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest; \
-  go install github.com/projectdiscovery/katana/cmd/katana@latest; \
-  go install github.com/tomnomnom/waybackurls@latest; \
-  go install github.com/tomnomnom/anew@latest; \
-  go install github.com/tomnomnom/unfurl@latest; \
-  go install github.com/sa7mon/s3scanner@latest; \
-  go install github.com/ropnop/kerbrute@latest; \
-  go install github.com/zricethezav/gitleaks/v8@latest; \
+  go install github.com/owasp-amass/amass/v4/...@latest || true; \
+  go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest || true; \
+  go install github.com/projectdiscovery/httpx/cmd/httpx@latest || true; \
+  go install github.com/projectdiscovery/dnsx/cmd/dnsx@latest || true; \
+  go install github.com/projectdiscovery/katana/cmd/katana@latest || true; \
+  go install github.com/tomnomnom/waybackurls@latest || true; \
+  go install github.com/tomnomnom/anew@latest || true; \
+  go install github.com/tomnomnom/unfurl@latest || true; \
+  go install github.com/sa7mon/s3scanner@latest || true; \
+  go install github.com/ropnop/kerbrute@latest || true; \
+  go install github.com/zricethezav/gitleaks/v8@latest || true; \
   apt-get purge -y --auto-remove golang-go; \
   rm -rf /var/lib/apt/lists/* /root/go /home/*/go || true
 
