@@ -70,8 +70,8 @@ RUN set -eux; \
     go install github.com/tomnomnom/gf@latest; \
     go install github.com/tomnomnom/unfurl@latest; \
     go install github.com/tomnomnom/qsreplace@latest; \
-    go install github.com/jaeles-project/jaeles@latest; \
-    go install github.com/jaeles-project/gospider@latest; \
+    go install github.com/jaeles-project/jaeles@latest || true; \
+    go install github.com/jaeles-project/gospider@latest || true; \
     apt-get purge -y --auto-remove golang-go; \
     rm -rf /root/go /var/lib/apt/lists/*
 
