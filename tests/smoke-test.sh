@@ -8,10 +8,10 @@ PASS=0; FAIL=0
 check() {
   if command -v "$1" >/dev/null 2>&1; then
     printf "  ✔ %s\n" "$1"
-    ((PASS++))
+    PASS=$((PASS + 1))
   else
     printf "  ✘ %s\n" "$1"
-    ((FAIL++))
+    FAIL=$((FAIL + 1))
   fi
 }
 
