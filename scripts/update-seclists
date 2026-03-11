@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SECLISTS="${SECLISTS:-/opt/seclists}"
+tmp="$(mktemp -d)"
+echo "[gw] refreshing SecLists..."
+git clone --depth=1 https://github.com/danielmiessler/SecLists "$tmp"
+rsync -a --delete "$tmp"/ "$SECLISTS"/
+rm -rf "$tmp"
+echo "[gw] SecLists refreshed."

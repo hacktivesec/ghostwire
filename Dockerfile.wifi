@@ -1,19 +1,9 @@
-﻿# syntax=docker/dockerfile:1
-FROM ubuntu:24.04 AS crlf_normalizer
-ENV DEBIAN_FRONTEND=noninteractive
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends dos2unix; \
-    rm -rf /var/lib/apt/lists/*
-WORKDIR /src
-# (optional) COPY your potentially-CRLF files here and normalize them:
-# COPY ./scripts/ /src/scripts/
-# RUN find /src -type f -print0 | xargs -0 -r dos2unix --
-
-FROM ubuntu:24.04
+# syntax=docker/dockerfile:1
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
 
 LABEL org.opencontainers.image.title="ghostwire-wifi" \
-      org.opencontainers.image.description="Ghostwire - wireless toolkit (lean)" \
+      org.opencontainers.image.description="Ghostwire - wireless security toolkit" \
       org.opencontainers.image.vendor="ghostwire" \
       org.opencontainers.image.version="dev" \
       org.opencontainers.image.licenses="CC0-1.0"
@@ -23,9 +13,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     LC_ALL=C.UTF-8 LANG=C.UTF-8 \
     TERM=xterm-256color \
     ARTIFACTS=/shared \
-    GHOST_LABEL=wifi    
+    GHOST_LABEL=wifi
 
-# ---- Core + Wi-Fi toolchain (lean) ----
+# ---- Core + Wi-Fi toolchain ----
 RUN set -eux; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
@@ -46,7 +36,7 @@ RUN cat > /usr/local/bin/wifi-mon <<'SH' && chmod +x /usr/local/bin/wifi-mon
 #!/usr/bin/env bash
 set -euo pipefail
 IF="${1:-}"
-ACTION="${2:-on}"   # on|off
+ACTION="${2:-on}"
 [ -n "$IF" ] || { echo "usage: wifi-mon <iface> [on|off]" >&2; exit 2; }
 if [ "$ACTION" = "on" ]; then
   rfkill unblock all || true
@@ -88,56 +78,43 @@ else
 fi
 SH
 
-# ---- Session logging + prompt (no heredocs; Windows-safe) ----
+# ---- Copy shared scripts ----
+COPY scripts/session-log scripts/gw-versions /usr/local/bin/
+
+# ---- smoke test ----
+COPY tests/smoke-test.sh /usr/local/bin/smoke-test
+
+# ---- QoL: symlinks + prompt ----
 RUN ln -s /usr/bin/fdfind /usr/local/bin/fd || true && \
     ln -s /usr/bin/batcat /usr/local/bin/bat || true && \
-    printf '%s\n' \
-      '[ -n "$BASH_VERSION" ] || return 0' \
-      'export ARTIFACTS=/shared' \
-      'alias ll='\''ls -alF --color=auto'\''' \
-      'alias bat='\''bat --paging=never'\''' \
-      'alias fd='\''fdfind'\''' \
-      'export HISTTIMEFORMAT="%F %T "' \
-      'export HISTCONTROL=ignorespace:erasedups' \
-      'GHOST_LABEL=${GHOST_LABEL:-wifi}' \
-      'ghost_prompt(){ local r=$?; if [ $r -eq 0 ]; then GS="\[\e[1;32m\]✔"; else GS="\[\e[1;31m\]✘"; fi; export GS; }' \
-      'PROMPT_COMMAND=ghost_prompt' \
-      'PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;32m\]ghostwire\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GHOST_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "' \
-      > /etc/profile.d/ghostwire.sh && chmod 0644 /etc/profile.d/ghostwire.sh
+    cat > /etc/profile.d/ghostwire.sh <<'PSH' && chmod 0644 /etc/profile.d/ghostwire.sh
+[ -n "$BASH_VERSION" ] || return 0
+export ARTIFACTS=/shared
+alias ll='ls -alF --color=auto'
+alias bat='bat --paging=never'
+alias fd='fdfind'
+export HISTTIMEFORMAT="%F %T "
+export HISTCONTROL=ignorespace:erasedups
+GHOST_LABEL=${GHOST_LABEL:-wifi}
+ghost_prompt(){ local r=$?; if [ $r -eq 0 ]; then GS="\[\e[1;32m\]✔"; else GS="\[\e[1;31m\]✘"; fi; export GS; }
+PROMPT_COMMAND=ghost_prompt
+PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;32m\]ghostwire-wifi\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GHOST_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "
+echo "[wifi] Tools: aircrack-ng, reaver, pixiewps, hcxdumptool, hcxtools, tshark"
+echo "[wifi] Helpers: wifi-mon, wifi-scan, wifi-capture"
+PSH
 
-# ---- Session login helper (used by compose command) ----
-RUN cat > /usr/local/bin/session-log <<'SH' && chmod +x /usr/local/bin/session-log
-#!/usr/bin/env bash
-set -euo pipefail
-mkdir -p /shared/history
-export HISTFILE="/shared/history/$(date +%F_%H%M%S).bash_history"
-export PROMPT_COMMAND='history -a'
-exec bash -l
-SH
-
-
-# ---- CRLF guard (normalize any accidental Windows line endings) ----
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends dos2unix; \
-    git config --system core.autocrlf false || true; \
-    find /usr/local/bin -type f -print0 | xargs -0 -r dos2unix --; \
-    find /opt -type f \( -name '*.sh' -o -name '*.py' -o -name '*.service' -o -name '*.conf' -o -name '*.ps1' -o -name '*.psm1' -o -name '*.psd1' -o -name '*.cmd' -o -name '*.bat' \) -print0 | xargs -0 -r dos2unix --; \
-    find /etc/profile.d -type f -name '*.sh' -print0 | xargs -0 -r dos2unix --; \
-    apt-get purge -y dos2unix; \
-    rm -rf /var/lib/apt/lists/*
-
-# ---- Non-root user with passwordless sudo (for tcpdump usbmon) ----
+# ---- Non-root user with scoped sudo ----
 RUN groupadd -r ghost && useradd -m -g ghost -s /bin/bash ghost && \
     mkdir -p /work "${ARTIFACTS}" /opt/tools && \
     chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools && \
-    printf 'ghost ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/ghost && chmod 0440 /etc/sudoers.d/ghost
+    printf 'ghost ALL=(ALL) NOPASSWD: /usr/sbin/tcpdump, /sbin/ip, /usr/bin/tshark, /usr/sbin/airmon-ng, /usr/sbin/iw\n' > /etc/sudoers.d/ghost && \
+    chmod 0440 /etc/sudoers.d/ghost
 
 USER ghost
 WORKDIR /work
 VOLUME ["/shared", "/work"]
 
-HEALTHCHECK --interval=1h --timeout=10s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=5m --timeout=10s --start-period=10s --retries=3 \
   CMD sh -c 'command -v airodump-ng >/dev/null 2>&1 && command -v aircrack-ng >/dev/null 2>&1 && command -v tshark >/dev/null 2>&1 || exit 1'
 
 STOPSIGNAL SIGINT

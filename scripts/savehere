@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [ $# -lt 1 ]; then echo "usage: savehere <file|dir> [...]" >&2; exit 2; fi
+mkdir -p "${ARTIFACTS}"
+for p in "$@"; do
+  base=$(basename "$p")
+  target="${ARTIFACTS}/${base}"
+  [ -e "$target" ] && target="${target}_$(date +%s)"
+  cp -a "$p" "$target"
+done
+echo "saved to ${ARTIFACTS}"
