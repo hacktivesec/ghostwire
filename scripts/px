@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# px: run any command through SOCKS5 (DNS resolved on proxy side)
+set -euo pipefail
+H="${SOCKS5_HOST:-127.0.0.1}"
+P="${SOCKS5_PORT:-1080}"
+CFG="$(mktemp /tmp/proxychains.XXXXXX)"
+trap 'rm -f "$CFG"' EXIT INT TERM
+cat >"$CFG"<<PCFG
+strict_chain
+proxy_dns
+tcp_read_time_out 15000
+tcp_connect_time_out 8000
+[ProxyList]
+socks5 $H $P
+PCFG
+exec proxychains4 -q -f "$CFG" "$@"

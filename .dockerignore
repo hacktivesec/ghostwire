@@ -1,5 +1,3 @@
-.env
-*.env
 .git
 .gitignore
 .DS_Store
@@ -10,13 +8,13 @@ venv/
 .coverage
 .cache/
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-build/
-dist/
-target/
+artifacts/
 *.log
 *.tmp
 *.swp
-coverage/
+*.pcap
+Ghostwire.png
+README.md
+DEPENDENCIES.md
+LICENSE
+Makefile

@@ -1,24 +1,6 @@
 # syntax=docker/dockerfile:1
 
-#######################################################################
-# Make BASE_IMAGE available to any FROM (must be before the first FROM)
-#######################################################################
 ARG BASE_IMAGE=ubuntu:24.04
-
-# --- Stage -1 (opzionale): normalizza CRLF->LF per file del build context ---
-# Usa questo stage solo se devi copiare file locali che potrebbero avere CRLF.
-# Esempio (da abilitare quando ti serve):
-#   FROM ${BASE_IMAGE} AS crlf_normalizer
-#   COPY ./scripts/ /src/scripts/
-#   RUN find /src -type f -print0 | xargs -0 -r dos2unix --
-FROM ${BASE_IMAGE} AS crlf_normalizer
-ENV DEBIAN_FRONTEND=noninteractive
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends dos2unix; \
-    rm -rf /var/lib/apt/lists/*
-WORKDIR /src
-# (non copi nulla di default: lo stage resta "no-op" finché non lo referenzi)
 
 # --- Stage 0: build bulk_extractor from source ---
 FROM ubuntu:24.04 AS bulkbuilder
@@ -41,14 +23,14 @@ RUN set -eux; \
   rm -rf /var/lib/apt/lists/*
 
 ############################
-# Stage 1: AD & Cloud focused image
+# Stage 1: AD & Cloud image
 ############################
 FROM ${BASE_IMAGE} AS base
 
 LABEL org.opencontainers.image.title="ghostwire-ad" \
-      org.opencontainers.image.description="Active Directory & Cloud penetration testing toolkit - lean and focused" \
+      org.opencontainers.image.description="Active Directory & Cloud penetration testing toolkit" \
       org.opencontainers.image.vendor="ghostwire" \
-      org.opencontainers.image.version="dev-ad" \
+      org.opencontainers.image.version="dev" \
       org.opencontainers.image.licenses="CC0-1.0"
 
 ARG SECLISTS_SHA=HEAD
@@ -71,7 +53,6 @@ RUN set -eux; \
       ca-certificates tzdata curl wget gnupg lsb-release apt-transport-https \
       git jq sudo nano less bash-completion \
       python3 python3-venv python3-pip python3-dev \
-      # build bits to make pip wheels happy (cryptography/cffi/etc)
       build-essential libffi-dev libssl-dev \
       # AD essentials
       samba-common-bin krb5-user ldap-utils smbclient \
@@ -79,7 +60,6 @@ RUN set -eux; \
       nmap dnsutils iputils-ping traceroute netcat-openbsd socat tcpdump iproute2 openssl \
       # Cracking
       hashcat ocl-icd-libopencl1 pocl-opencl-icd clinfo john hydra \
-      # We install AWS CLI v2 separately below
       golang-go \
       # QoL
       ripgrep fd-find fzf tree rsync bat proxychains4 openssh-client unzip zip procps tini tar; \
@@ -90,25 +70,8 @@ RUN set -eux; \
 
 # ---- Wordlists (SecLists) ----
 RUN set -eux; \
-    mkdir -p "${SECLISTS}"; \
-    if command -v git >/dev/null 2>&1; then \
-      git clone https://github.com/danielmiessler/SecLists "${SECLISTS}" || _gitfail=1; \
-      if [ "${SECLISTS_SHA}" != "HEAD" ] && [ ! "${_gitfail:-0}" = "1" ]; then \
-        cd "${SECLISTS}" && git fetch --depth=1 origin "${SECLISTS_SHA}" && git checkout "${SECLISTS_SHA}"; \
-      fi; \
-    fi; \
-    if [ ! -s "${SECLISTS}/.gitignore" ]; then \
-      echo "[SecLists] git clone failed or missing; pulling tarball"; \
-      tmpd="$(mktemp -d)"; \
-      if [ "${SECLISTS_SHA}" = "HEAD" ]; then \
-        curl -fsSL "https://github.com/danielmiessler/SecLists/archive/refs/heads/master.tar.gz" -o "$tmpd/seclists.tgz"; \
-      else \
-        curl -fsSL "https://github.com/danielmiessler/SecLists/archive/${SECLISTS_SHA}.tar.gz" -o "$tmpd/seclists.tgz"; \
-      fi; \
-      tar -xzf "$tmpd/seclists.tgz" -C /opt; \
-      mv /opt/SecLists-* "${SECLISTS}" || true; \
-      rm -rf "$tmpd"; \
-    fi; \
+    git clone --depth=1 https://github.com/danielmiessler/SecLists "${SECLISTS}"; \
+    if [ "${SECLISTS_SHA}" != "HEAD" ]; then cd "${SECLISTS}" && git fetch --depth=1 origin "${SECLISTS_SHA}" && git checkout "${SECLISTS_SHA}"; fi; \
     rm -rf "${SECLISTS}/.git" || true
 
 # ---- Python venv (AD & Cloud toolset) ----
@@ -124,29 +87,38 @@ RUN set -eux; \
       boto3 azure-identity azure-mgmt-resource azure-mgmt-compute azure-mgmt-network \
       # AD focused
       impacket \
-      # Auditors/tools we want in venv
       scoutsuite certipy-ad; \
     true
 
-# ---- NetExec (modern CrackMapExec) ----
+# ---- NetExec ----
 RUN set -eux; \
     python3 -m venv /opt/nxc-venv; \
     /opt/nxc-venv/bin/pip install --upgrade pip; \
     /opt/nxc-venv/bin/pip install --no-cache-dir netexec || \
       /opt/nxc-venv/bin/pip install --no-cache-dir 'git+https://github.com/Pennyw0rth/NetExec'
 
-# ---- enum4linux-ng (modern enum4linux) ----
+# ---- enum4linux-ng ----
 RUN set -eux; \
     git clone --depth=1 https://github.com/cddmp/enum4linux-ng /opt/enum4linux-ng; \
     rm -rf /opt/enum4linux-ng/.git
 
-# ---- Kerbrute (ensure binary lands in PATH) ----
+# ---- Responder + mitm6 ----
+RUN set -eux; \
+  git clone --depth=1 https://github.com/lgandx/Responder /opt/Responder && \
+  rm -rf /opt/Responder/.git; \
+  printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/python /opt/Responder/Responder.py "$@"' > /usr/local/bin/responder; \
+  chmod +x /usr/local/bin/responder; \
+  /opt/ghost-venv/bin/pip install --no-cache-dir mitm6; \
+  printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/mitm6 "$@"' > /usr/local/bin/mitm6; \
+  chmod +x /usr/local/bin/mitm6
+
+# ---- Kerbrute ----
 RUN set -eux; \
     export GO111MODULE=on GOBIN=/usr/local/bin; \
     go install github.com/ropnop/kerbrute@latest; \
     command -v /usr/local/bin/kerbrute >/dev/null
 
-# ---- Azure CLI (official Microsoft repo for Ubuntu 24.04 "noble") ----
+# ---- Azure CLI ----
 RUN set -eux; \
     mkdir -p /etc/apt/keyrings; \
     curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg; \
@@ -155,7 +127,7 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends azure-cli; \
     rm -rf /var/lib/apt/lists/*
 
-# ---- AWS CLI v2 (official installer; arch-aware) ----
+# ---- AWS CLI v2 ----
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \
     case "$arch" in \
@@ -176,47 +148,42 @@ RUN set -eux; \
       | tar -C /opt -xz; \
     /opt/google-cloud-sdk/install.sh --quiet --usage-reporting=false --command-completion=false --path-update=false
 
-# ---- Pacu (AWS exploitation framework) ----
+# ---- Pacu (AWS exploitation) ----
 RUN set -eux; \
     git clone --depth=1 https://github.com/RhinoSecurityLabs/pacu /opt/pacu; \
     /opt/ghost-venv/bin/pip install --no-cache-dir -r /opt/pacu/requirements.txt
 
-# ---- Coercer (AD coercion attack tool) ----
+# ---- Coercer (AD coercion) ----
 RUN set -eux; \
     git clone --depth=1 https://github.com/p0dalirius/coercer /opt/coercer; \
     /opt/ghost-venv/bin/pip install --no-cache-dir -r /opt/coercer/requirements.txt
 
+# ---- bulk_extractor from builder ----
+COPY --from=bulkbuilder /opt/be-install/usr/local/ /usr/local/
+
 # ---- PATH shims and wrappers ----
 RUN set -eux; \
   mkdir -p /usr/local/bin; \
-  # NetExec/CrackMapExec (alias crackmapexec -> nxc)
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/nxc-venv/bin/nxc "$@"' > /usr/local/bin/nxc; \
   chmod +x /usr/local/bin/nxc; \
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/nxc-venv/bin/nxc "$@"' > /usr/local/bin/crackmapexec; \
   chmod +x /usr/local/bin/crackmapexec; \
-  # enum4linux-ng
   printf '%s\n' '#!/usr/bin/env bash' 'exec python3 /opt/enum4linux-ng/enum4linux-ng.py "$@"' > /usr/local/bin/enum4linux-ng; \
   chmod +x /usr/local/bin/enum4linux-ng; \
-  # BloodHound Python
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/bloodhound-python "$@"' > /usr/local/bin/bloodhound-python; \
   chmod +x /usr/local/bin/bloodhound-python; \
-  # ScoutSuite
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/scout "$@"' > /usr/local/bin/scoutsuite; \
   chmod +x /usr/local/bin/scoutsuite; \
-  # Pacu
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/python /opt/pacu/pacu.py "$@"' > /usr/local/bin/pacu; \
   chmod +x /usr/local/bin/pacu; \
-  # Certipy
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/certipy "$@"' > /usr/local/bin/certipy; \
   chmod +x /usr/local/bin/certipy; \
-  # Coercer
   printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/python /opt/coercer/coercer.py "$@"' > /usr/local/bin/coercer; \
   chmod +x /usr/local/bin/coercer; \
-  # GCP
   ln -sf /opt/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud; \
   ln -sf /opt/google-cloud-sdk/bin/gsutil /usr/local/bin/gsutil
 
-# ---- Impacket scripts wrappers (point to venv so imports work) ----
+# ---- Impacket wrappers ----
 RUN set -eux; \
   for n in psexec secretsdump wmiexec ntlmrelayx atexec ticketer GetUserSPNs GetNPUsers addcomputer smbserver; do \
     printf '#!/usr/bin/env bash\nexec /opt/ghost-venv/bin/python -m impacket.examples.%s "$@"\n' "$n" > "/usr/local/bin/${n}"; \
@@ -224,27 +191,28 @@ RUN set -eux; \
     ln -sf "/usr/local/bin/${n}" "/usr/local/bin/${n}.py"; \
   done
 
-# ---- Bulk Extractor from builder stage ----
-COPY --from=bulkbuilder /opt/be-install/usr/local/ /usr/local/
+# ---- Copy shared scripts ----
+COPY scripts/px scripts/pxcurl scripts/session-log scripts/gw-versions \
+     /usr/local/bin/
 
-# ---- AD-specific helper scripts ----
+# ---- smoke test ----
+COPY tests/smoke-test.sh /usr/local/bin/smoke-test
+
+# ---- AD helper scripts ----
 RUN cat > /usr/local/bin/gw-ad-quick <<'SH' && chmod +x /usr/local/bin/gw-ad-quick
 #!/usr/bin/env bash
 set -euo pipefail
 echo "[gw-ad] Quick AD Assessment Helper"
-echo "Available commands:"
-echo "  nxc smb <target> -u '' -p '' --shares          # Null session share enumeration"
-echo "  nxc smb <target> -u user -p pass --shares      # Authenticated share enumeration"
-echo "  nxc smb <target> -u user -p pass --sessions    # User sessions"
-echo "  nxc smb <target> -u user -p pass --loggedon-users  # Logged on users"
-echo "  nxc smb <target> -u user -p pass --users       # Domain users"
-echo "  nxc smb <target> -u user -p pass --groups      # Domain groups"
-echo "  nxc smb <target> -u user -p pass --local-groups # Local groups"
-echo "  nxc ldap <target> -u user -p pass --trusted-for-delegation  # Unconstrained delegation"
-echo "  bloodhound-python -d domain -u user -p pass -ns <dc_ip> -c All  # BloodHound data collection"
-echo "  kerbrute userenum -d domain --dc <dc_ip> /opt/seclists/Usernames/xato-net-10-million-usernames.txt"
-echo "  GetNPUsers.py domain/user -dc-ip <dc_ip> -no-pass  # ASREPRoasting"
-echo "  GetUserSPNs.py domain/user:pass -dc-ip <dc_ip>     # Kerberoasting"
+echo "  nxc smb <target> -u '' -p '' --shares"
+echo "  nxc smb <target> -u user -p pass --shares"
+echo "  bloodhound-python -d domain -u user -p pass -ns <dc_ip> -c All"
+echo "  kerbrute userenum -d domain --dc <dc_ip> users.txt"
+echo "  GetNPUsers domain/user -dc-ip <dc_ip> -no-pass"
+echo "  GetUserSPNs domain/user:pass -dc-ip <dc_ip>"
+echo "  responder -I eth0 -dwPv"
+echo "  mitm6 -d domain.local"
+echo "  certipy find -u user@domain -p pass -dc-ip <dc_ip>"
+echo "  coercer scan -t <target> -u user -p pass -d domain"
 SH
 
 RUN cat > /usr/local/bin/gw-cloud-audit <<'SH' && chmod +x /usr/local/bin/gw-cloud-audit
@@ -252,48 +220,23 @@ RUN cat > /usr/local/bin/gw-cloud-audit <<'SH' && chmod +x /usr/local/bin/gw-clo
 set -euo pipefail
 echo "[gw-cloud] Cloud Security Audit Helper"
 echo "AWS:"
-echo "  scoutsuite aws --access-keys-id <key> --secret-access-key <secret>  # AWS audit"
-echo "  pacu                                      # AWS exploitation framework"
-echo "  aws sts get-caller-identity               # Check AWS credentials"
+echo "  scoutsuite aws --access-keys-id <key> --secret-access-key <secret>"
+echo "  pacu"
+echo "  aws sts get-caller-identity"
 echo ""
 echo "Azure:"
-echo "  scoutsuite azure --cli                    # Azure audit"
-echo "  az account list                           # List Azure subscriptions"
+echo "  scoutsuite azure --cli"
+echo "  az account list"
 echo ""
 echo "GCP:"
-echo "  scoutsuite gcp --user-account             # GCP audit"
-echo "  gcloud auth list                          # List GCP auth"
-echo "  gcloud projects list                       # List GCP projects"
+echo "  scoutsuite gcp --user-account"
+echo "  gcloud auth list"
+echo "  gcloud projects list"
 SH
 
-# ---- Proxy helpers (reuse from base) ----
-RUN cat > /usr/local/bin/px <<'PC' && chmod +x /usr/local/bin/px
-#!/usr/bin/env bash
-set -euo pipefail
-H="${SOCKS5_HOST:-127.0.0.1}"
-P="${SOCKS5_PORT:-1080}"
-CFG="$(mktemp /tmp/proxychains.XXXXXX)"
-trap 'rm -f "$CFG"' EXIT INT TERM
-cat >"$CFG"<<PCFG
-strict_chain
-proxy_dns
-tcp_read_time_out 15000
-tcp_connect_time_out 8000
-[ProxyList]
-socks5 $H $P
-PCFG
-exec proxychains4 -q -f "$CFG" "$@"
-PC
-
-# ---- QoL: aliases + prompt ----
-RUN set -eux; \
-    cat > /etc/profile.d/ghostwire-ad.sh <<'PSH' && chmod 0644 /etc/profile.d/ghostwire-ad.sh
-#!/usr/bin/env bash
-# Questo file viene normalmente *sourcato* da bash. Se qualcuno lo esegue,
-# esci in modo pulito; se non è bash o non è una shell interattiva, non fare nulla.
-if [ -z "${BASH_VERSION:-}" ]; then
-  return 0 2>/dev/null || exit 0
-fi
+# ---- QoL: prompt ----
+RUN cat > /etc/profile.d/ghostwire-ad.sh <<'PSH' && chmod 0644 /etc/profile.d/ghostwire-ad.sh
+[ -n "$BASH_VERSION" ] || return 0
 case $- in *i*) : ;; *) return 0 ;; esac
 
 export SECLISTS=/opt/seclists
@@ -315,46 +258,25 @@ ghost_prompt(){
 PROMPT_COMMAND=ghost_prompt
 PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[1;34m\]ghostwire-ad\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GHOST_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "
 if [ -n "${SOCKS5_HOST:-}" ]; then echo "[px] SOCKS5 target: ${SOCKS5_HOST}:${SOCKS5_PORT:-1080}"; fi
-echo "[gw] AD tools: nxc, bloodhound-python, kerbrute, certipy, coercer"
+echo "[gw] AD tools: nxc, bloodhound-python, kerbrute, certipy, coercer, responder, mitm6"
 echo "[gw] Cloud: scoutsuite, pacu, aws, az, gcloud"
 PSH
 
-# ---- Session login helper (used by compose command) ----
-RUN cat > /usr/local/bin/session-log <<'SH' && chmod +x /usr/local/bin/session-log
-#!/usr/bin/env bash
-set -euo pipefail
-mkdir -p /shared/history
-export HISTFILE="/shared/history/$(date +%F_%H%M%S).bash_history"
-export PROMPT_COMMAND='history -a'
-exec bash -l
-SH
-
-# ---- CRLF guard (normalizza eventuali line endings Windows) ----
-# Tenuto tardi nella build per non invalidare cache inutilmente.
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends dos2unix; \
-    git config --system core.autocrlf false || true; \
-    find /usr/local/bin -type f -print0 | xargs -0 -r dos2unix --; \
-    find /opt -type f \( -name '*.sh' -o -name '*.py' -o -name '*.ps1' -o -name '*.psm1' -o -name '*.psd1' -o -name '*.cmd' -o -name '*.bat' \) -print0 | xargs -0 -r dos2unix --; \
-    find /etc/profile.d -type f -name '*.sh' -print0 | xargs -0 -r dos2unix --; \
-    apt-get purge -y dos2unix; \
-    rm -rf /var/lib/apt/lists/*
-
-# ---- Non-root user setup ----
+# ---- Non-root user ----
 RUN set -eux; \
     groupadd -r ghost; \
     useradd -m -g ghost -s /bin/bash ghost; \
     mkdir -p /work "${ARTIFACTS}" /opt/tools; \
-    chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools /opt/ghost-venv /opt/nxc-venv /opt/google-cloud-sdk "${SECLISTS}" /opt/enum4linux-ng /opt/pacu /opt/coercer
+    chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools /opt/ghost-venv /opt/nxc-venv /opt/google-cloud-sdk "${SECLISTS}" /opt/enum4linux-ng /opt/pacu /opt/coercer /opt/Responder; \
+    printf 'ghost ALL=(ALL) NOPASSWD: /usr/sbin/tcpdump, /sbin/ip, /usr/bin/tshark\n' > /etc/sudoers.d/ghost; \
+    chmod 0440 /etc/sudoers.d/ghost
 
 USER ghost
 WORKDIR /work
 
 VOLUME ["/shared", "/work"]
 
-# ---- Healthcheck ----
-HEALTHCHECK --interval=1h --timeout=10s --start-period=20s --retries=3 \
+HEALTHCHECK --interval=5m --timeout=10s --start-period=20s --retries=3 \
   CMD sh -c 'command -v nxc >/dev/null 2>&1 && command -v bloodhound-python >/dev/null 2>&1 && command -v aws >/dev/null 2>&1 || exit 1'
 
 STOPSIGNAL SIGINT

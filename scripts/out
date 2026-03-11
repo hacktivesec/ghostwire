@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [ $# -eq 0 ]; then
+  echo "usage: out <command> [args...]" >&2
+  exit 2
+fi
+cmd="$1"; shift
+log="${ARTIFACTS:-/shared}/$(basename "$cmd")_$(date +%s).log"
+"$cmd" "$@" 2>&1 | tee "$log"
+exit ${PIPESTATUS[0]}

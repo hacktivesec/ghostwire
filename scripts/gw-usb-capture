@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+MON="${1:-usbmon0}"; OUT="${2:-/shared/usb.pcap}"
+if [ ! -e /sys/kernel/debug/usb/usbmon ] && [ ! -e /sys/kernel/debug/usb/"$MON" ]; then
+  echo "usbmon unavailable. On HOST: sudo modprobe usbmon && sudo mount -t debugfs none /sys/kernel/debug" >&2
+  echo "run container with: -v /sys/kernel/debug:/sys/kernel/debug:ro -v /dev/bus/usb:/dev/bus/usb:ro" >&2
+fi
+lsusb 2>/dev/null || true
+echo "[gw] capturing from $MON -> $OUT"
+sudo -n tcpdump -i "$MON" -s 0 -w "$OUT"
+echo "[gw] saved: $OUT"

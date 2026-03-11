@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [ -n "${SSH_AUTH_SOCK:-}" ] && [ -S "${SSH_AUTH_SOCK}" ]; then
+  echo "[gw] SSH agent socket mounted: $SSH_AUTH_SOCK"
+  exit 0
+fi
+echo "[gw] No SSH agent. Mount with: -e SSH_AUTH_SOCK -v \$SSH_AUTH_SOCK:/ssh-agent" >&2
+exit 1

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p "${ARTIFACTS:-/shared}/history"
+export HISTFILE="${ARTIFACTS:-/shared}/history/$(date +%F_%H%M%S).bash_history"
+export PROMPT_COMMAND='history -a'
+exec bash -l
