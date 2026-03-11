@@ -135,6 +135,7 @@ COPY tests/smoke-test.sh /usr/local/bin/smoke-test
 # ---- QoL: prompt ----
 RUN ln -s /usr/bin/fdfind /usr/local/bin/fd || true && \
     ln -s /usr/bin/batcat /usr/local/bin/bat || true
+COPY scripts/ghostwire-base.profile.sh /etc/profile.d/ghostwire-base.sh
 COPY scripts/ghostwire-mobile.profile.sh /etc/profile.d/ghostwire-mobile.sh
 
 # ---- Non-root user ----

@@ -9,12 +9,16 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [web, net, wifi, mobile, ad]
     steps:
       - uses: actions/checkout@v4
-      - name: Lint Dockerfiles
+      - name: Lint Dockerfile.${{ matrix.variant }}
         uses: hadolint/hadolint-action@v3.1.0
         with:
-          dockerfile: Dockerfile.web
+          dockerfile: Dockerfile.${{ matrix.variant }}
           failure-threshold: error
           ignore: DL3003,DL3006,DL3008,DL3013,DL3016,DL3018,DL3028,DL4006,SC2015,SC2086
 
@@ -45,3 +49,7 @@ jobs:
       - name: Smoke test ${{ matrix.variant }}
         run: |
           docker run --rm ghostwire:${{ matrix.variant }} smoke-test ${{ matrix.variant }}
+
+      - name: Image size
+        run: |
+          docker images ghostwire:${{ matrix.variant }} --format '{{.Repository}}:{{.Tag}} {{.Size}}'

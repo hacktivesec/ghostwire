@@ -1,149 +1,71 @@
 # ghostwire – Dependencies
 
-This file summarizes the main dependencies across all ghostwire images.
+All images use `ubuntu:24.04` as base.
 
 ---
 
-## System packages (APT)
+## Web (`Dockerfile.web`)
 
-Base image: `ubuntu:24.04`
+APT: `gobuster`, `nikto`, `whatweb`, `wafw00f`, `wfuzz`, `nmap`, `dnsutils`, `netcat-openbsd`, `proxychains4`
 
-Core system & tooling:
+Python venv (`/opt/ghost-venv`): `sqlmap`, `wafw00f`, `arjun`, `commix`
 
-* `ca-certificates`, `tzdata`, `curl`, `wget`, `git`, `jq`, `sudo`
-* `nano`, `less`, `bash-completion`
-* `python3`, `python3-pip`, `python3-venv`
-* `ripgrep`, `fd-find`, `fzf`, `whois`, `tree`, `rsync`, `bat`
-* `proxychains4`, `openssh-client`
-* `unzip`, `zip`, `procps`, `tini`, `tar`
+Cloned: `XSStrike`, `testssl.sh`
 
-Web:
-
-* `gobuster`, `nikto`, `sqlmap`, `whatweb`, `wafw00f`, `wfuzz`
-
-Network / infrastructure:
-
-* `nmap`, `masscan`, `dnsutils`, `iputils-ping`, `traceroute`
-* `netcat-openbsd`, `socat`, `tcpdump`, `iproute2`, `openssl`
-* `tshark`, `tcpflow`, `ngrep`
-* `sshuttle`, `openvpn`, `wireguard-tools`
-* `ike-scan`, `onesixtyone`, `snmp`, `patator`
-
-Active Directory / authentication:
-
-* `samba-common-bin`, `krb5-user`, `ldap-utils`, `smbclient`
-* `python3-impacket`
-
-Cracking:
-
-* `hashcat`, `ocl-icd-libopencl1`, `pocl-opencl-icd`, `clinfo`
-* `john`, `hydra`
-
-Wireless:
-
-* `aircrack-ng`, `reaver`, `pixiewps`
-* `hcxdumptool`, `hcxtools`
-* `iw`, `wireless-tools`, `rfkill`, `wpasupplicant`
-
-Steganography / forensics:
-
-* `steghide`, `libimage-exiftool-perl`, `binwalk`, `foremost`
-
-Mobile:
-
-* `apktool`, `adb`, `aapt`
-* `radare2`
-* `ideviceinstaller`, `ifuse`, `libimobiledevice-utils`
+Go: `ffuf`, `nuclei`, `httpx`, `dnsx`, `katana`, `waybackurls`, `gf`, `unfurl`, `qsreplace`, `jaeles`, `gospider`
 
 ---
 
-## Python (main venv `/opt/ghost-venv`)
+## Network (`Dockerfile.net`)
 
-HTTP / networking:
+APT: `nmap`, `masscan`, `dnsutils`, `tcpdump`, `tshark`, `socat`, `traceroute`, `openssl`, `openvpn`, `wireguard-tools`, `sshuttle`, `hydra`, `ike-scan`, `onesixtyone`, `snmp`
 
-* `httpx[socks]`, `httpx-ntlm`, `requests`, `requests-ntlm`, `requests-toolbelt`, `PySocks`
+Python venv: `scapy`, `impacket`, `requests`, `PySocks`
 
-AD / network:
-
-* `ldapdomaindump`, `bloodhound`, `smbmap`, `sslyze==6.2.0`
-* `impacket`, `certipy-ad`, `pypykatz`, `mitm6`
-
-Cloud:
-
-* `boto3`, `azure-identity`, `azure-mgmt-*`
-* `scoutsuite`
-
-Web:
-
-* `arjun`, `commix`
-
-Mobile:
-
-* `frida-tools`, `objection`, `androguard`, `apkid`, `mobsfscan`
-
-Forensics:
-
-* `volatility3`
+Go: `chisel`, `dnsx`, `httpx`
 
 ---
 
-## Python (NetExec venv `/opt/nxc-venv`)
+## Active Directory & Cloud (`Dockerfile.ad`)
 
-* `NetExec` (from pip or `git+https://github.com/Pennyw0rth/NetExec`)
+APT: `nmap`, `masscan`, `hashcat` (CPU/POCL), `john`, `hydra`, `samba-common-bin`, `krb5-user`, `ldap-utils`, `smbclient`
 
----
+Python venv (`/opt/ghost-venv`): `httpx[socks]`, `ldapdomaindump`, `bloodhound`, `smbmap`, `impacket`, `certipy-ad`, `pypykatz`, `boto3`, `azure-mgmt-*`, `scoutsuite`
 
-## Ruby (gems)
+Python venv (`/opt/nxc-venv`): `NetExec`
 
-* `evil-winrm`
-* `wpscan` (also exposed via the wrapper command `wp`)
+Go: `kerbrute`
 
----
+Cloned: `SecLists`, `enum4linux-ng`, `Responder`, `Pacu`, `Coercer`
 
-## Go tools (installed into `/usr/local/bin`)
+Cloud CLIs: `aws` (v2), `az` (Microsoft repo), `gcloud` (Google SDK)
 
-* `ffuf`, `nuclei`, `jaeles`, `amass`, `subfinder`
-* `httpx`, `dnsx`, `katana`, `waybackurls`, `anew`, `unfurl`
-* `s3scanner`, `kerbrute`, `gitleaks`
-* `chisel`, `gospider`, `gf`, `qsreplace`
-* `ipatool`
+Compiled: `bulk_extractor` (multi-stage build)
+
+Impacket wrappers: `psexec`, `secretsdump`, `wmiexec`, `ntlmrelayx`, `atexec`, `ticketer`, `GetUserSPNs`, `GetNPUsers`, `addcomputer`, `smbserver`
 
 ---
 
-## External tools cloned / downloaded
+## Mobile (`Dockerfile.mobile`)
 
-* `bulk_extractor` — compiled from source in builder stage
-* `enum4linux` / `enum4linux-ng` — cloned
-* `joomscan` — cloned (OWASP)
-* `SecretFinder` — cloned
-* `Responder` — cloned
-* `XSStrike` — cloned
-* `testssl.sh` — cloned
-* `MobSF` — cloned
-* `Pacu` — cloned
-* `Coercer` — cloned
+APT: `adb`, `aapt`, `apktool`, `radare2`, `libimobiledevice-utils`, `ideviceinstaller`, `usbmuxd`
 
-Optional (via build args):
+Python venv: `frida-tools`, `objection`, `androguard`, `apkid`, `mobsfscan`, `pyaxmlparser`
 
-* `PowerSploit` (`ENABLE_POWERSPLOIT=1`)
-* `Empire` (`ENABLE_EMPIRE=1`)
-* `CloudMapper` (`ENABLE_CLOUDMAPPER=1`)
-* `MobSF` (`ENABLE_MOBSF=1`)
-
-Downloaded binaries:
-
-* `jadx` v1.5.0
-* `Trivy` (official install script)
-* `AWS CLI v2` (official installer)
-* `Azure CLI` (Microsoft repo)
-* `GCP CLI` (Google SDK)
-* `linPEAS` (latest release)
-* `pspy` (latest release)
-* `IPATool` v2.2.0 (built from source)
+Downloaded: `jadx` v1.5.0, `ipatool` v2.2.0 (built from source)
 
 ---
 
-## SecLists
+## Wireless (`Dockerfile.wifi`)
 
-* `https://github.com/danielmiessler/SecLists`
-* Installed to `/opt/seclists`, exposed as `$SECLISTS`
+APT: `aircrack-ng`, `reaver`, `pixiewps`, `hcxdumptool`, `hcxtools`, `tcpdump`, `tshark`, `iw`, `wireless-tools`, `rfkill`, `wpasupplicant`
+
+---
+
+## Shared (all images)
+
+APT: `ca-certificates`, `curl`, `wget`, `git`, `python3`, `python3-pip`, `python3-venv`, `sudo`, `nano`, `less`, `procps`, `tini`, `ripgrep`, `fd-find`, `fzf`, `bat`, `tree`, `rsync`, `proxychains4`, `openssh-client`
+
+Scripts: `px`, `pxcurl`, `pxwget`, `savehere`, `out`, `session-log`, `gw-versions`, `update-seclists`, `smoke-test`
+
+Wordlists: SecLists at `/opt/seclists` (`$SECLISTS`)

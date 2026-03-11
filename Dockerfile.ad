@@ -235,6 +235,7 @@ echo "  gcloud projects list"
 SH
 
 # ---- QoL: prompt ----
+COPY scripts/ghostwire-base.profile.sh /etc/profile.d/ghostwire-base.sh
 COPY scripts/ghostwire-ad.profile.sh /etc/profile.d/ghostwire-ad.sh
 
 # ---- Non-root user ----

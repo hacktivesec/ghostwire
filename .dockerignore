@@ -1,6 +1,10 @@
 .git
+.github
 .gitignore
+.gitattributes
+.dockerignore
 .DS_Store
+.env
 __pycache__/
 *.py[cod]
 .venv/
@@ -13,8 +17,8 @@ artifacts/
 *.tmp
 *.swp
 *.pcap
-Ghostwire.png
-README.md
-DEPENDENCIES.md
+*.md
+*.png
 LICENSE
 Makefile
+docker-compose*.yml

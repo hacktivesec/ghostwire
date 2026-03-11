@@ -37,21 +37,17 @@
 
 ## What's inside
 
-### Core CLI
-- **Web:** `gobuster`, `nikto`, `sqlmap`, `wfuzz`, `whatweb`, `wafw00f`, `ffuf`, `nuclei`, `xsstrike`, `testssl`
-- **Network:** `nmap`, `masscan`, `dnsutils`, `tcpdump`, `tshark`, `chisel`, `socat`, `traceroute`, `openssl`
-- **AD / Auth:** `python3-impacket` wrappers, `nxc` (NetExec), `bloodhound-python`, `certipy`, `kerbrute`, `responder`, `mitm6`, `coercer`, `enum4linux-ng`
-- **Cracking:** `hashcat` (CPU OpenCL via POCL), `john`, `hydra`
-- **Wireless:** `aircrack-ng`, `reaver`, `pixiewps`, `hcxdumptool`, `hcxtools`
-- **Mobile:** `jadx`, `apktool`, `adb`, `frida-tools`, `objection`, `ipatool`, `radare2`
-- **Cloud:** `aws`, `az`, `gcloud`, `scoutsuite`, `pacu`, `trivy`
-- **Wordlists:** **SecLists** at `/opt/seclists` → `$SECLISTS`
+### Per image
 
-### Extras
-- **Stego & forensics:** `steghide`, `exiftool`, `binwalk`, `foremost`, `bulk_extractor`
-- **Post-ex:** `linpeas.sh`, `pspy`, `pypykatz`, `volatility3`
-- **Python (venv):** `arjun`, `commix`, `objection`, `frida-tools`, `NetExec`
-- **Go recon:** `subfinder`, `httpx`, `dnsx`, `katana`, `amass`, `waybackurls`, `anew`, `unfurl`, `s3scanner`, `gitleaks`
+| Image | Tools |
+|-------|-------|
+| **web** | `ffuf`, `gobuster`, `nikto`, `sqlmap`, `wfuzz`, `whatweb`, `wafw00f`, `nuclei`, `xsstrike`, `testssl`, `arjun`, `commix`, `httpx`, `dnsx`, `katana`, `waybackurls`, `gospider` |
+| **net** | `nmap`, `masscan`, `tcpdump`, `tshark`, `chisel`, `socat`, `hydra`, `openvpn`, `sshuttle`, `wireguard`, `ike-scan`, `httpx`, `dnsx` |
+| **ad** | `nxc`, `bloodhound-python`, `certipy`, `kerbrute`, `responder`, `coercer`, `impacket` wrappers, `hashcat`, `john`, `hydra`, `aws`, `az`, `gcloud`, `scoutsuite`, `pacu`, `enum4linux-ng` |
+| **mobile** | `jadx`, `apktool`, `adb`, `frida-tools`, `objection`, `radare2`, `ipatool`, `mobsfscan`, `androguard` |
+| **wifi** | `aircrack-ng`, `reaver`, `pixiewps`, `hcxdumptool`, `hcxtools`, `tshark`, `tcpdump` |
+
+**All images:** SecLists at `$SECLISTS`, `proxychains4`, `px`/`pxcurl`/`pxwget` SOCKS wrappers
 
 ### Helpers
 `px` (SOCKS5 wrapper) · `pxcurl` · `pxwget` · `savehere` · `out` · `session-log` · `update-seclists` · `gw-versions` · `smoke-test`
@@ -240,8 +236,6 @@ smoke-test web    # or net|wifi|mobile|ad
 # manual spot check
 whoami && pwd
 nmap --version
-hashcat --version
-nxc --version || true
 gw-versions
 ```
 
@@ -249,7 +243,7 @@ gw-versions
 
 ## Build args, env & volumes
 
-* **Build args:** `BASE_IMAGE=ubuntu:24.04`, `SECLISTS_SHA=HEAD`, feature flags `ENABLE_POWERSPLOIT`, `ENABLE_EMPIRE`, `ENABLE_CLOUDMAPPER`, `ENABLE_MOBSF`
+* **Build args:** `BASE_IMAGE=ubuntu:24.04`
 * **Environment:** `SOCKS5_HOST`, `SOCKS5_PORT`, `SECLISTS=/opt/seclists`, `ARTIFACTS=/shared`
 * **Volumes:** `/shared` (artifacts), `/work` (workspace)
 * **Healthcheck:** verifies core tools are reachable
