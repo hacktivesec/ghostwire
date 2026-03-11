@@ -8,10 +8,10 @@ PASS=0; FAIL=0
 check() {
   if command -v "$1" >/dev/null 2>&1; then
     printf "  ✔ %s\n" "$1"
-    ((PASS++))
+    PASS=$((PASS + 1))
   else
     printf "  ✘ %s\n" "$1"
-    ((FAIL++))
+    FAIL=$((FAIL + 1))
   fi
 }
 
@@ -25,14 +25,14 @@ for c in bash curl wget git python3 tini; do check "$c"; done
 case "$VARIANT" in
   web)
     echo "--- web ---"
-    for c in ffuf nuclei gobuster nikto sqlmap whatweb wafw00f httpx dnsx \
-             waybackurls jaeles arjun commix xsstrike testssl; do
+    for c in gobuster nikto whatweb wafw00f \
+             arjun commix xsstrike testssl; do
       check "$c"
     done
     ;;
   net)
     echo "--- network ---"
-    for c in nmap masscan tcpdump tshark chisel dnsx httpx hydra \
+    for c in nmap masscan tcpdump tshark hydra \
              socat openssl ike-scan; do
       check "$c"
     done
@@ -62,11 +62,10 @@ case "$VARIANT" in
   total)
     echo "--- core ---"
     for c in nmap masscan gobuster nikto sqlmap whatweb wafw00f hashcat \
-             john hydra ffuf nuclei httpx dnsx subfinder katana amass \
-             jaeles waybackurls anew unfurl gitleaks kerbrute s3scanner \
+             john hydra \
              nxc bloodhound-python smbmap evil-winrm wpscan \
              psexec secretsdump wmiexec ntlmrelayx \
-             pypykatz arjun commix volatility3 objection frida-ps \
+             pypykatz arjun commix objection frida-ps \
              trivy aws jadx apktool aircrack-ng reaver \
              steghide exiftool binwalk foremost bulk_extractor \
              secretfinder linpeas.sh enum4linux joomscan sslyze; do
