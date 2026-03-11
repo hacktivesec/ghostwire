@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# gw-versions: print installed tool versions to stdout or file
+set -euo pipefail
+OUT="${1:-}"
+manifest() {
+  echo "=== ghostwire tool manifest ==="
+  echo "generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  echo ""
+  for cmd in nmap masscan gobuster nikto sqlmap whatweb wafw00f wfuzz \
+             ffuf nuclei httpx dnsx subfinder katana amass jaeles \
+             hashcat john hydra nxc bloodhound-python kerbrute \
+             aircrack-ng reaver tshark chisel \
+             jadx apktool adb frida-ps objection \
+             trivy aws gitleaks secretfinder \
+             evil-winrm wpscan python3 ruby go; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+      ver="$("$cmd" --version 2>/dev/null | head -1 || echo "installed")"
+      printf "%-25s %s\n" "$cmd" "$ver"
+    fi
+  done
+}
+if [ -n "$OUT" ]; then
+  manifest > "$OUT"
+  echo "[gw] manifest written to $OUT"
+else
+  manifest
+fi

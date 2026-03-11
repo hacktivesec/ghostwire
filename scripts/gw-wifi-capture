@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFACE="${1:-}"; OUT="${2:-/shared/wifi.pcap}"
+if [ -z "$IFACE" ]; then
+  echo "usage: gw-wifi-capture <iface> [outfile]" >&2
+  echo "prepare monitor mode on HOST, then run inside container: gw-wifi-capture wlan0 /shared/wifi.pcap" >&2
+  exit 2
+fi
+echo "[gw] iface: $IFACE  out: $OUT"
+iw dev 2>/dev/null || true
+echo "[gw] starting capture (needs NET_RAW/NET_ADMIN caps or sudo rights)"
+sudo -n tcpdump -i "$IFACE" -s 0 -w "$OUT"
+echo "[gw] saved: $OUT"

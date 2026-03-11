@@ -1,0 +1,13 @@
+artifacts/
+*.pcap
+*.log
+*.tmp
+*.swp
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+node_modules/
+.coverage
+.cache/

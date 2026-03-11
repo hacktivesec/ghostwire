@@ -15,7 +15,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.web
-    image: ${IMAGE_PREFIX:-local}/ghostwire:web
     container_name: ghostwire-web
     environment:
       GHOST_LABEL: web
@@ -25,7 +24,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.net
-    image: ${IMAGE_PREFIX:-local}/ghostwire:net
     container_name: ghostwire-net
     environment:
       GHOST_LABEL: network
@@ -35,7 +33,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.wifi
-    image: ${IMAGE_PREFIX:-local}/ghostwire:wifi
     container_name: ghostwire-wifi
     cap_add: ["NET_RAW", "NET_ADMIN"]
     environment:
@@ -46,7 +43,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.mobile
-    image: ${IMAGE_PREFIX:-local}/ghostwire:mobile
     container_name: ghostwire-mobile
     environment:
       GHOST_LABEL: mobile
@@ -56,7 +52,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.ad
-    image: ${IMAGE_PREFIX:-local}/ghostwire:ad
     container_name: ghostwire-ad
     environment:
       GHOST_LABEL: ad
@@ -66,7 +61,14 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.total
-    image: ${IMAGE_PREFIX:-local}/ghostwire:total
     container_name: ghostwire
     environment:
       GHOST_LABEL: security
+      SOCKS5_HOST: ${SOCKS5_HOST:-host.docker.internal}
+      SOCKS5_PORT: ${SOCKS5_PORT:-1080}
+    # GPU (optional):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - capabilities: [gpu]

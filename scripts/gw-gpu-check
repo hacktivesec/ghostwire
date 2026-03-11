@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+echo "[gw] hashcat devices:"
+hashcat -I || true
+if command -v nvidia-smi >/dev/null 2>&1; then
+  echo "[gw] nvidia-smi:"
+  nvidia-smi || true
+else
+  echo "[gw] nvidia-smi not found. For NVIDIA: install nvidia-container-toolkit on host and run --gpus all"
+fi
