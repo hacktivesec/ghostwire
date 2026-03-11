@@ -62,14 +62,13 @@ Impacket wrappers: `psexec`, `wmiexec`, `secretsdump`, `ntlmrelayx`, `atexec`, `
 ## Requirements
 - Docker **and** Docker Compose v2
 - For **SOCKS:** reachable SOCKS5 proxy (default `127.0.0.1:1080`)
-- For **GPU:** vendor drivers on host + container runtime (`--gpus all` for NVIDIA)
+
 
 ---
 
 ## Repo layout
 
 ```
-Dockerfile.total          → everything (all-in-one)
 Dockerfile.web            → web recon + vuln scanning
 Dockerfile.net            → network recon + tunneling
 Dockerfile.ad             → Active Directory + cloud
@@ -90,12 +89,11 @@ Makefile                  → convenience targets
 ### Using Make (easiest)
 
 ```bash
-make total          # build & start the all-in-one container
+make web            # build & start the web container
 make shell          # drop into it
 make test           # run smoke tests
 
 # or pick a variant
-make web            # just web tools
 make ad             # AD + cloud
 make shell-ad       # shell into AD container
 make test-web       # smoke test web image
@@ -105,8 +103,8 @@ make test-web       # smoke test web image
 
 ```bash
 # build & start a variant
-docker compose up -d total    # or web|net|wifi|mobile|ad
-docker compose exec total bash
+docker compose up -d web    # or net|wifi|mobile|ad
+docker compose exec web bash
 docker compose down
 ```
 
@@ -114,19 +112,19 @@ docker compose down
 
 ```bash
 mkdir -p artifacts
-docker build -t ghostwire:total -f Dockerfile.total .
+docker build -t ghostwire:web -f Dockerfile.web .
 docker run --rm -it --network host \
   -e SOCKS5_HOST=127.0.0.1 -e SOCKS5_PORT=1080 \
   -v "$PWD:/work" -v "$PWD/artifacts:/shared" \
-  --name ghostwire ghostwire:total
+  --name ghostwire ghostwire:web
 ```
 
 ### Docker Desktop (Mac/Windows)
 
 ```bash
 # .env: SOCKS5_HOST=host.docker.internal
-docker compose up -d total
-docker compose exec total bash
+docker compose up -d web
+docker compose exec web bash
 ```
 
 ### WiFi capture (Linux, needs caps)
@@ -136,15 +134,6 @@ make wifi
 docker compose exec wifi bash
 wifi-mon wlan0 on
 wifi-capture wlan0
-```
-
-### GPU cracking (Linux/WSL2)
-
-Uncomment the GPU section in `docker-compose.yml`, then:
-
-```bash
-docker compose up -d total
-docker compose exec total bash -lc 'gw-gpu-check && hashcat -I'
 ```
 
 ---
@@ -246,7 +235,7 @@ gw-versions /shared/versions.txt
 
 ```bash
 # automated (inside the container)
-smoke-test total    # or web|net|wifi|mobile|ad
+smoke-test web    # or net|wifi|mobile|ad
 
 # manual spot check
 whoami && pwd
@@ -279,7 +268,6 @@ gw-versions
 
 * **"container name already in use"** — `docker rm -f ghostwire` or use `--name ghostwire2`
 * **Windows path issues** — prefer `--mount` or forward slashes
-* **No GPU devices** — ensure host drivers + `nvidia-container-toolkit`, run with `--gpus all`
 * **SOCKS not reachable** — on Docker Desktop use `host.docker.internal`
 
 ---

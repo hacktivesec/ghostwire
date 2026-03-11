@@ -14,7 +14,7 @@ jobs:
       - name: Lint Dockerfiles
         uses: hadolint/hadolint-action@v3.1.0
         with:
-          dockerfile: Dockerfile.total
+          dockerfile: Dockerfile.web
           failure-threshold: error
           ignore: DL3003,DL3006,DL3008,DL3013,DL3016,DL3018,DL3028,DL4006,SC2015,SC2086
 
@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [web, net, wifi, mobile, ad, total]
+        variant: [web, net, wifi, mobile, ad]
     steps:
       - uses: actions/checkout@v4
 

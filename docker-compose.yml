@@ -56,19 +56,3 @@ services:
     environment:
       GHOST_LABEL: ad
 
-  total:
-    <<: *common
-    build:
-      context: .
-      dockerfile: Dockerfile.total
-    container_name: ghostwire
-    environment:
-      GHOST_LABEL: security
-      SOCKS5_HOST: ${SOCKS5_HOST:-host.docker.internal}
-      SOCKS5_PORT: ${SOCKS5_PORT:-1080}
-    # GPU (optional):
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - capabilities: [gpu]

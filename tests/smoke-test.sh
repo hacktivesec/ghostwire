@@ -2,7 +2,7 @@
 # smoke-test.sh — verify tools are present per image variant
 set -euo pipefail
 
-VARIANT="${1:-total}"
+VARIANT="${1:-web}"
 PASS=0; FAIL=0
 
 check() {
@@ -59,22 +59,9 @@ case "$VARIANT" in
       check "$c"
     done
     ;;
-  total)
-    echo "--- core ---"
-    for c in nmap masscan gobuster nikto sqlmap whatweb wafw00f hashcat \
-             john hydra \
-             nxc bloodhound-python smbmap evil-winrm wpscan \
-             psexec secretsdump wmiexec ntlmrelayx \
-             pypykatz arjun commix objection frida-ps \
-             trivy aws jadx apktool aircrack-ng reaver \
-             steghide exiftool binwalk foremost bulk_extractor \
-             secretfinder linpeas.sh enum4linux joomscan sslyze; do
-      check "$c"
-    done
-    ;;
   *)
     echo "unknown variant: $VARIANT" >&2
-    echo "usage: smoke-test.sh [web|net|wifi|mobile|ad|total]" >&2
+    echo "usage: smoke-test.sh [web|net|wifi|mobile|ad]" >&2
     exit 2
     ;;
 esac

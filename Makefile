@@ -1,4 +1,4 @@
-.PHONY: help build build-all web net wifi mobile ad total \
+.PHONY: help build build-all web net wifi mobile ad \
        up down shell test clean
 
 COMPOSE := docker compose
@@ -9,7 +9,7 @@ help: ## Show this help
 
 # ---- Build targets ----
 
-build: total ## Build the total (all-in-one) image
+build: web ## Build the web image (default)
 
 build-all: ## Build every image variant
 	$(COMPOSE) build
@@ -29,9 +29,6 @@ mobile: ## Build & start mobile container
 ad: ## Build & start AD container
 	$(COMPOSE) up -d --build ad
 
-total: ## Build & start total container
-	$(COMPOSE) up -d --build total
-
 # ---- Runtime ----
 
 up: ## Start all containers
@@ -40,16 +37,16 @@ up: ## Start all containers
 down: ## Stop & remove all containers
 	$(COMPOSE) down
 
-shell: ## Shell into the total container
-	$(COMPOSE) exec total bash
+shell: ## Shell into the web container
+	$(COMPOSE) exec web bash
 
 shell-%: ## Shell into a specific container (e.g. make shell-web)
 	$(COMPOSE) exec $* bash
 
 # ---- Testing ----
 
-test: ## Run smoke tests against total image
-	$(COMPOSE) run --rm total smoke-test total
+test: ## Run smoke tests against web image
+	$(COMPOSE) run --rm web smoke-test web
 
 test-%: ## Run smoke tests for a variant (e.g. make test-web)
 	$(COMPOSE) run --rm $* smoke-test $*

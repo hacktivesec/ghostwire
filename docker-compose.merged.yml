@@ -60,13 +60,3 @@ services:
     container_name: ghostwire-ad
     environment:
       GHOST_LABEL: ad
-
-  total:
-    <<: *common
-    build:
-      context: .
-      dockerfile: Dockerfile.total
-    image: ${IMAGE_PREFIX:-local}/ghostwire:total
-    container_name: ghostwire
-    environment:
-      GHOST_LABEL: security
