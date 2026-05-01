@@ -97,6 +97,11 @@ jobs:
       fail-fast: false
       matrix:
         variant: [web, net, wifi, mobile, ad, pivot]
+        include:
+          # wifi tools (aircrack-ng, reaver, hcxdumptool, ...) are not packaged
+          # for arm64 in the Ubuntu noble repos — keep this variant amd64 only.
+          - variant: wifi
+            platforms: linux/amd64
     steps:
       - uses: actions/checkout@v4
 
@@ -130,7 +135,7 @@ jobs:
         with:
           context: .
           file: Dockerfile.${{ matrix.variant }}
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ matrix.platforms || env.PLATFORMS }}
           build-args: |
             GHOSTWIRE_BASE=${{ env.REGISTRY }}/${{ env.REPO }}-base@${{ needs.base.outputs.digest }}
           push: ${{ github.event_name != 'pull_request' }}

@@ -38,7 +38,7 @@ Python venv: `sqlmap`, `arjun`, `commix`, `wafw00f`.
 Pinned clones: `SecLists` (`SECLISTS_REF`), `XSStrike` (`XSSTRIKE_REF`),
 `testssl.sh` (`TESTSSL_REF`).
 
-Go (pinned): `ffuf`, `nuclei`, `httpx`, `dnsx`, `katana`, `subfinder`,
+Go (pinned): `ffuf`, `nuclei`, `httpx`, `dnsx`, `subfinder`,
 `waybackurls`, `gf` (commit), `unfurl`, `qsreplace`, `anew`, `assetfinder`,
 `jaeles` (`v0.17.1`), `gospider`.
 
@@ -68,7 +68,9 @@ Python venv: `httpx[socks]`, `httpx-ntlm`, `requests-ntlm`, `requests-toolbelt`,
 
 Pinned clones: `SecLists`, `NetExec` (`NETEXEC_REF`),
 `enum4linux-ng` (`ENUM4LINUX_NG_REF`), `Responder` (`RESPONDER_REF`),
-`Pacu` (`PACU_REF`), `coercer` (`COERCER_REF`).
+`coercer` (`COERCER_REF`).
+
+PyPI (pinned): `pacu` (`PACU_REF`).
 
 Compiled (pinned): `bulk_extractor` (`BULK_EXTRACTOR_REF`).
 

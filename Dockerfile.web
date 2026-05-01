@@ -11,7 +11,6 @@ RUN set -eux; \
     go install github.com/projectdiscovery/nuclei/v3/cmd/nuclei@v3.7.1; \
     go install github.com/projectdiscovery/httpx/cmd/httpx@v1.9.0; \
     go install github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.3; \
-    go install github.com/projectdiscovery/katana/cmd/katana@v1.5.0; \
     go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.6; \
     go install github.com/tomnomnom/waybackurls@v0.1.0; \
     go install github.com/tomnomnom/gf@dcd4c361f9f55b21eaa7eb1e9e2c1cdb9b3a3489; \

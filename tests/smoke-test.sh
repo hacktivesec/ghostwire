@@ -87,7 +87,7 @@ case "$VARIANT" in
     for c in adb aapt apktool jadx radare2 frida-ps objection ipatool \
              idevice_id mobsfscan apkid androguard yara; do cmd "$c"; done
     check "jadx --help"    jadx --help
-    check "frida-ps -V"    frida-ps -V
+    check "frida-ps --version"    frida-ps --version
     ;;
   ad)
     echo

@@ -92,13 +92,9 @@ RUN set -eux; \
     printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/python /opt/Responder/Responder.py "$@"' > /usr/local/bin/responder; \
     chmod +x /usr/local/bin/responder
 
-# ---- Pacu (pinned) ----
-RUN set -eux; \
-    git clone --depth=1 --branch "${PACU_REF}" \
-      https://github.com/RhinoSecurityLabs/pacu /opt/pacu; \
-    rm -rf /opt/pacu/.git; \
-    "${GHOST_VENV}/bin/pip" install --no-cache-dir -r /opt/pacu/requirements.txt; \
-    chown -R ghost:ghost /opt/pacu
+# ---- Pacu (pinned, PyPI install) ----
+# v1.7+ uses pyproject.toml — install from PyPI rather than cloning.
+RUN "${GHOST_VENV}/bin/pip" install --no-cache-dir "pacu==${PACU_REF#v}"
 
 # ---- Coercer (pinned) ----
 RUN set -eux; \
@@ -162,7 +158,7 @@ RUN set -eux; \
     chmod +x /usr/local/bin/bloodhound-python; \
     printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/scout "$@"' > /usr/local/bin/scoutsuite; \
     chmod +x /usr/local/bin/scoutsuite; \
-    printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/python /opt/pacu/pacu.py "$@"' > /usr/local/bin/pacu; \
+    printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/pacu "$@"' > /usr/local/bin/pacu; \
     chmod +x /usr/local/bin/pacu; \
     printf '%s\n' '#!/usr/bin/env bash' 'exec /opt/ghost-venv/bin/certipy "$@"' > /usr/local/bin/certipy; \
     chmod +x /usr/local/bin/certipy; \
