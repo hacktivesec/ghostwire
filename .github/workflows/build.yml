@@ -106,6 +106,11 @@ jobs:
           # no working source-build path. Keep ad amd64 only until upstream ships one.
           - variant: ad
             platforms: linux/amd64
+          # Web has 13 Go tools to cross-compile; QEMU arm64 cross-compile takes
+          # ~40+ min and frequently stalls past CI timeout. Keep amd64 until a
+          # native arm64 runner is available.
+          - variant: web
+            platforms: linux/amd64
     steps:
       - uses: actions/checkout@v4
 
@@ -196,7 +201,7 @@ jobs:
           push-to-registry: true
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.REPO }}-${{ matrix.variant }}@${{ steps.build.outputs.digest }}
           format: table
