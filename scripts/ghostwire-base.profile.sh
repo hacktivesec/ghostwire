@@ -17,3 +17,7 @@ GW_LABEL=${GHOST_LABEL:-${GW_LABEL:-tools}}
 PS1="\[\e[90m\][\A]\[\e[0m\] \[\e[${GW_COLOR}\]${GW_NAME}\[\e[0m\]\[\e[90m\]@\[\e[0m\]\[\e[90m\]${GW_LABEL}\[\e[0m\] \[\e[90m\](\w)\[\e[0m\]\n${GS}\[\e[90m\]>\[\e[0m\] "
 
 if [ -n "${SOCKS5_HOST:-}" ]; then echo "[px] SOCKS5 target: ${SOCKS5_HOST}:${SOCKS5_PORT:-1080}"; fi
+
+# active engagement (set by `gw new`/`gw use`)
+[ -r /usr/local/bin/gw-engagement ] && . /usr/local/bin/gw-engagement
+[ -n "${ENGAGEMENT_DIR:-}" ] && echo "[gw] engagement: ${ENGAGEMENT}  ($(basename "${ENGAGEMENT_DIR}"))"

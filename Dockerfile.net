@@ -1,128 +1,97 @@
 # syntax=docker/dockerfile:1
-ARG BASE_IMAGE=ubuntu:24.04
+ARG GHOSTWIRE_BASE=ghostwire-base:dev
 
 # ---- Stage 0: compile Go tools ----
 FROM golang:1.24-bookworm AS gobuilder
 ENV CGO_ENABLED=0 GOTOOLCHAIN=auto
+ARG TARGETOS TARGETARCH
+ENV GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 RUN set -eux; \
     go install github.com/jpillora/chisel@v1.11.5; \
     go install github.com/projectdiscovery/dnsx/cmd/dnsx@v1.2.3; \
-    go install github.com/projectdiscovery/httpx/cmd/httpx@v1.9.0
+    go install github.com/projectdiscovery/httpx/cmd/httpx@v1.9.0; \
+    go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@v2.6.6
 
 # ---- Stage 1: final image ----
-FROM ${BASE_IMAGE}
+FROM ${GHOSTWIRE_BASE} AS final
+USER root
 
 LABEL org.opencontainers.image.title="ghostwire-net" \
-      org.opencontainers.image.description="Ghostwire - network recon, tunneling & traffic analysis" \
-      org.opencontainers.image.vendor="ghostwire" \
-      org.opencontainers.image.version="dev" \
-      org.opencontainers.image.licenses="CC0-1.0"
+      org.opencontainers.image.description="Network recon, tunneling & traffic analysis" \
+      org.opencontainers.image.source="https://github.com/wnoelll/ghostwire"
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    TZ=UTC \
-    LC_ALL=C.UTF-8 LANG=C.UTF-8 \
-    PIP_NO_CACHE_DIR=1 \
-    TERM=xterm-256color \
-    ARTIFACTS=/shared \
-    GHOST_LABEL=network \
-    SOCKS5_HOST=127.0.0.1 \
-    SOCKS5_PORT=1080
+ENV GHOST_LABEL=net
 
-# ---- Core network toolchain ----
+ARG SECLISTS_REF=2026.1
+
 RUN set -eux; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends \
-    ca-certificates tzdata curl wget git jq sudo \
-    nano less bash-completion \
-    python3 python3-pip python3-venv \
-    # scanners
-    nmap masscan \
-    # network basics
-    dnsutils iputils-ping traceroute whois \
-    netcat-openbsd socat openssl iproute2 tcpdump \
-    # auth/brute
-    hydra \
-    # service enumeration
-    ike-scan onesixtyone snmp \
-    # traffic analysis
-    tshark tcpflow ngrep \
-    # tunneling
-    sshuttle openvpn wireguard-tools \
-    # QoL
-    ripgrep fd-find fzf tree rsync bat proxychains4 openssh-client unzip zip procps tini tar \
-    libplist-utils; \
-  rm -rf /var/lib/apt/lists/*
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      nmap masscan \
+      tcpdump tshark tcpflow ngrep \
+      hydra ike-scan onesixtyone snmp \
+      sshuttle openvpn wireguard-tools \
+      libplist-utils; \
+    rm -rf /var/lib/apt/lists/*
 
-# ---- Python network tooling ----
-RUN python3 -m venv /opt/ghost-venv && \
-    /opt/ghost-venv/bin/python -m pip install --upgrade pip "setuptools<81" wheel && \
-    /opt/ghost-venv/bin/pip install --no-cache-dir \
-      scapy impacket requests PySocks
+RUN set -eux; \
+    git clone --depth=1 --branch "${SECLISTS_REF}" \
+      https://github.com/danielmiessler/SecLists "${SECLISTS}"; \
+    rm -rf "${SECLISTS}/.git"; \
+    chown -R ghost:ghost "${SECLISTS}"
+
+RUN "${GHOST_VENV}/bin/pip" install --no-cache-dir \
+      scapy impacket
 
 # ---- Go tools from builder stage ----
 COPY --from=gobuilder /go/bin/ /usr/local/bin/
 
-# ---- Network helper scripts ----
+# ---- Net helper aliases ----
 RUN set -eux; \
-    printf '%s\n' '#!/usr/bin/env bash' \
-    'set -euo pipefail' \
-    'echo "[net] Quick Network Assessment:"' \
-    'echo "  nmap -sC -sV -oA scan <target>"' \
-    'echo "  masscan -p1-1000 <target> --rate=1000"' \
-    'echo "  dnsx -d domain.com -a -aaaa -cname"' \
-    'echo "  httpx -l hosts.txt -status-code"' \
-    'echo "  ike-scan -A <target>"' \
-    'echo "  onesixtyone <target>"' \
-    > /usr/local/bin/gw-net-scan && chmod +x /usr/local/bin/gw-net-scan; \
-    \
-    printf '%s\n' '#!/usr/bin/env bash' \
-    'set -euo pipefail' \
-    'echo "[net] Tunneling & Pivoting:"' \
-    'echo "  chisel server -p 8080 --reverse"' \
-    'echo "  chisel client server:8080 R:1080:socks"' \
-    'echo "  sshuttle -r user@jumpbox 10.0.0.0/8"' \
-    'echo "  openvpn config.ovpn"' \
-    'echo "  wg-quick up wg0.conf"' \
-    'echo "  px nmap -sT target"' \
-    > /usr/local/bin/gw-net-tunnel && chmod +x /usr/local/bin/gw-net-tunnel; \
-    \
-    printf '%s\n' '#!/usr/bin/env bash' \
-    'set -euo pipefail' \
-    'echo "[net] Traffic Analysis:"' \
-    'echo "  tcpdump -i any -w capture.pcap"' \
-    'echo "  tshark -r capture.pcap -Y \"http\""' \
-    'echo "  tcpflow -r capture.pcap"' \
-    'echo "  ngrep -d any -W byline port 80"' \
-    > /usr/local/bin/gw-net-traffic && chmod +x /usr/local/bin/gw-net-traffic
+    cat > /usr/local/bin/gw-net-scan <<'SH'
+#!/usr/bin/env bash
+echo "[net] Quick network assessment patterns:"
+echo "  nmap -sC -sV -oA scan <target>"
+echo "  masscan -p1-1000 <target> --rate=1000"
+echo "  dnsx -d domain.com -a -aaaa -cname"
+echo "  httpx -l hosts.txt -status-code"
+echo "  ike-scan -A <target>"
+echo "  onesixtyone <target>"
+SH
+RUN chmod +x /usr/local/bin/gw-net-scan
+RUN cat > /usr/local/bin/gw-net-tunnel <<'SH'
+#!/usr/bin/env bash
+echo "[net] Tunneling & pivoting patterns:"
+echo "  chisel server -p 8080 --reverse"
+echo "  chisel client server:8080 R:1080:socks"
+echo "  sshuttle -r user@jumpbox 10.0.0.0/8"
+echo "  openvpn config.ovpn"
+echo "  wg-quick up wg0.conf"
+echo "  px nmap -sT target"
+SH
+RUN chmod +x /usr/local/bin/gw-net-tunnel
+RUN cat > /usr/local/bin/gw-net-traffic <<'SH'
+#!/usr/bin/env bash
+echo "[net] Traffic analysis patterns:"
+echo "  tcpdump -i any -w capture.pcap"
+echo "  tshark -r capture.pcap -Y http"
+echo "  tcpflow -r capture.pcap"
+echo "  ngrep -d any -W byline port 80"
+SH
+RUN chmod +x /usr/local/bin/gw-net-traffic
 
-# ---- Copy shared scripts ----
-COPY scripts/px scripts/pxcurl scripts/session-log scripts/gw-versions \
-     /usr/local/bin/
+COPY scripts/ghostwire-net.profile.sh /etc/profile.d/ghostwire-net.sh
+RUN echo '. /etc/profile.d/ghostwire-net.sh' >> /home/ghost/.bashrc
 
-# ---- smoke test ----
-COPY tests/smoke-test.sh /usr/local/bin/smoke-test
-
-# ---- QoL: symlinks + prompt ----
-RUN ln -s /usr/bin/fdfind /usr/local/bin/fd || true && \
-    ln -s /usr/bin/batcat /usr/local/bin/bat || true
-COPY scripts/ghostwire-base.profile.sh /etc/profile.d/ghostwire-base.sh
-COPY scripts/ghostwire-net.profile.sh /etc/profile.d/ghostwire.sh
-
-# ---- Non-root user ----
-RUN groupadd -r ghost && useradd -m -g ghost -s /bin/bash ghost && \
-    mkdir -p /work "${ARTIFACTS}" /opt/tools && \
-    chown -R ghost:ghost /work "${ARTIFACTS}" /opt/tools /opt/ghost-venv && \
-    printf 'ghost ALL=(ALL) NOPASSWD: /usr/sbin/tcpdump, /sbin/ip, /usr/bin/tshark\n' > /etc/sudoers.d/ghost && \
-    chmod 0440 /etc/sudoers.d/ghost && \
-    echo '. /etc/profile.d/ghostwire.sh' >> /home/ghost/.bashrc
+# ---- Scoped sudo for capture ----
+RUN printf 'ghost ALL=(ALL) NOPASSWD: /usr/sbin/tcpdump, /sbin/ip, /usr/bin/tshark\n' > /etc/sudoers.d/ghost && \
+    chmod 0440 /etc/sudoers.d/ghost
 
 USER ghost
 WORKDIR /work
-VOLUME ["/shared", "/work"]
 
 HEALTHCHECK --interval=5m --timeout=10s --start-period=20s --retries=3 \
-  CMD sh -c 'command -v nmap >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1 || exit 1'
+  CMD sh -c 'command -v nmap >/dev/null 2>&1 && command -v tshark >/dev/null 2>&1 || exit 1'
 
-STOPSIGNAL SIGINT
 ENTRYPOINT ["/usr/bin/tini","--"]
 CMD ["/bin/bash"]

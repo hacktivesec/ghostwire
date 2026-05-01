@@ -1,0 +1,88 @@
+# syntax=docker/dockerfile:1
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
+
+LABEL org.opencontainers.image.title="ghostwire-base" \
+      org.opencontainers.image.description="Shared base for all ghostwire variants" \
+      org.opencontainers.image.vendor="ghostwire" \
+      org.opencontainers.image.source="https://github.com/wnoelll/ghostwire" \
+      org.opencontainers.image.licenses="CC0-1.0"
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=UTC \
+    LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    TERM=xterm-256color \
+    ARTIFACTS=/shared \
+    SECLISTS=/opt/seclists \
+    GHOST_VENV=/opt/ghost-venv \
+    SOCKS5_HOST=127.0.0.1 \
+    SOCKS5_PORT=1080 \
+    PATH=/opt/ghost-venv/bin:/usr/local/bin:/usr/bin:/bin
+
+# ---- Shared apt core ----
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      ca-certificates tzdata locales \
+      curl wget git jq sudo file \
+      nano less bash-completion \
+      python3 python3-pip python3-venv python3-dev \
+      build-essential libffi-dev libssl-dev pkg-config \
+      ripgrep fd-find fzf tree rsync bat \
+      proxychains4 openssh-client unzip zip \
+      procps tini tar gnupg lsb-release apt-transport-https \
+      netcat-openbsd dnsutils iputils-ping traceroute \
+      iproute2 socat openssl whois; \
+    update-ca-certificates; \
+    rm -rf /var/lib/apt/lists/*; \
+    ln -sf /usr/bin/fdfind /usr/local/bin/fd; \
+    ln -sf /usr/bin/batcat /usr/local/bin/bat
+
+# ---- Python venv (shared, variants pip install into it) ----
+RUN set -eux; \
+    python3 -m venv "${GHOST_VENV}"; \
+    "${GHOST_VENV}/bin/python" -m pip install --upgrade pip "setuptools<81" wheel; \
+    "${GHOST_VENV}/bin/pip" install --no-cache-dir \
+      requests "httpx[socks]" PySocks beautifulsoup4 jinja2 \
+      cryptography pyopenssl colorama defusedxml
+
+# ---- Non-root user with stable UID/GID ----
+RUN set -eux; \
+    groupadd -r -g 1001 ghost; \
+    useradd -m -r -g ghost -u 1001 -s /bin/bash ghost; \
+    mkdir -p /work /shared /opt/tools; \
+    chown -R ghost:ghost /work /shared /opt/tools "${GHOST_VENV}"
+
+# ---- Shared scripts ----
+COPY scripts/px scripts/pxcurl scripts/pxwget \
+     scripts/savehere scripts/out scripts/session-log \
+     scripts/update-seclists scripts/gw-versions \
+     scripts/gw scripts/gw-engagement \
+     scripts/gw-ssh-agent-check \
+     /usr/local/bin/
+RUN chmod +x /usr/local/bin/px /usr/local/bin/pxcurl /usr/local/bin/pxwget \
+             /usr/local/bin/savehere /usr/local/bin/out /usr/local/bin/session-log \
+             /usr/local/bin/update-seclists /usr/local/bin/gw-versions \
+             /usr/local/bin/gw /usr/local/bin/gw-ssh-agent-check
+
+# ---- Profile ----
+COPY scripts/ghostwire-base.profile.sh /etc/profile.d/ghostwire-base.sh
+RUN echo '. /etc/profile.d/ghostwire-base.sh' >> /home/ghost/.bashrc
+
+# ---- Smoke test entry point ----
+COPY tests/smoke-test.sh /usr/local/bin/smoke-test
+RUN chmod +x /usr/local/bin/smoke-test
+
+USER ghost
+WORKDIR /work
+VOLUME ["/shared", "/work"]
+
+HEALTHCHECK --interval=5m --timeout=10s --start-period=10s --retries=3 \
+  CMD sh -c 'command -v python3 >/dev/null 2>&1 && command -v curl >/dev/null 2>&1 || exit 1'
+
+STOPSIGNAL SIGINT
+ENTRYPOINT ["/usr/bin/tini","--"]
+CMD ["/bin/bash"]

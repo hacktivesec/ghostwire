@@ -1,159 +1,121 @@
 # syntax=docker/dockerfile:1
+ARG GHOSTWIRE_BASE=ghostwire-base:dev
 
-ARG BASE_IMAGE=ubuntu:24.04
-
-# ---- Stage 0: compile Go tools ----
+# ---- Stage 0: ipatool (pinned) ----
 FROM golang:1.24-bookworm AS gobuilder
+ENV CGO_ENABLED=0 GOTOOLCHAIN=auto
+ARG TARGETOS TARGETARCH
+ENV GOOS=${TARGETOS} GOARCH=${TARGETARCH}
 RUN set -eux; \
     git clone --depth=1 -b v2.2.0 https://github.com/majd/ipatool /src/ipatool; \
     cd /src/ipatool; \
     go build -o /go/bin/ipatool .
 
 # ---- Stage 1: final image ----
-FROM ${BASE_IMAGE}
+FROM ${GHOSTWIRE_BASE} AS final
+USER root
 
 LABEL org.opencontainers.image.title="ghostwire-mobile" \
-      org.opencontainers.image.description="Ghostwire - mobile security toolkit (Android & iOS)" \
-      org.opencontainers.image.vendor="ghostwire" \
-      org.opencontainers.image.version="dev" \
-      org.opencontainers.image.licenses="CC0-1.0"
+      org.opencontainers.image.description="Mobile security toolkit (Android & iOS)" \
+      org.opencontainers.image.source="https://github.com/wnoelll/ghostwire"
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    TZ=UTC \
-    LC_ALL=C.UTF-8 LANG=C.UTF-8 \
-    PIP_NO_CACHE_DIR=1 \
-    TERM=xterm-256color \
-    ARTIFACTS=/shared \
-    GHOST_LABEL=mobile
+ENV GHOST_LABEL=mobile
 
-# ---- Core + mobile essentials ----
+ARG MOBSF_REF=v4.4.6
+ARG JADX_VERSION=1.5.0
+
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-      ca-certificates tzdata curl wget git jq file nano less bash-completion sudo \
-      python3 python3-pip python3-venv \
-      default-jre-headless unzip zip \
-      # Android
+      default-jre-headless \
       adb aapt apktool \
-      # iOS dependencies
       libusb-1.0-0 libimobiledevice6 libzip4 \
-      # General analysis
-      yara dnsutils iputils-ping traceroute netcat-openbsd socat openssl \
-      ripgrep fd-find fzf whois tree rsync bat proxychains4 openssh-client \
-      procps tini tar; \
+      ideviceinstaller ifuse libimobiledevice-utils usbmuxd libplist-utils \
+      yara nmap radare2; \
     rm -rf /var/lib/apt/lists/*
 
-# ---- iOS specific tools ----
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends \
-      ideviceinstaller ifuse libimobiledevice-utils usbmuxd libplist-utils; \
-    rm -rf /var/lib/apt/lists/*
-
-# ---- Python venv (Android & iOS) ----
-RUN set -eux; \
-    python3 -m venv /opt/ghost-venv; \
-    /opt/ghost-venv/bin/python -m pip install --upgrade pip "setuptools<81" wheel; \
-    /opt/ghost-venv/bin/pip install --no-cache-dir \
+RUN "${GHOST_VENV}/bin/pip" install --no-cache-dir \
       frida-tools objection \
       androguard apkid mobsfscan pyaxmlparser \
-      cryptography requests || true
-
-# ---- radare2 + nmap ----
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends nmap radare2; \
-    rm -rf /var/lib/apt/lists/*
+      quark-engine
 
 # ---- Go tools from builder stage ----
 COPY --from=gobuilder /go/bin/ipatool /usr/local/bin/ipatool
 
-# ---- JADX ----
+# ---- JADX (pinned) ----
 RUN set -eux; \
-    JD_VER="1.5.0"; \
-    curl -fsSL -o /tmp/jadx.zip "https://github.com/skylot/jadx/releases/download/v${JD_VER}/jadx-${JD_VER}.zip"; \
+    curl -fsSL -o /tmp/jadx.zip \
+      "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip"; \
     rm -rf /opt/jadx; mkdir -p /opt/jadx; \
     unzip -q /tmp/jadx.zip -d /opt/jadx; \
-    if [ -d "/opt/jadx/bin" ]; then :; \
-    elif ls -d /opt/jadx/jadx-* >/dev/null 2>&1; then \
-      jd="$(ls -d /opt/jadx/jadx-*)" && mv "$jd"/* /opt/jadx/ && rmdir "$jd" || true; \
+    if [ ! -d "/opt/jadx/bin" ] && ls -d /opt/jadx/jadx-* >/dev/null 2>&1; then \
+      jd="$(ls -d /opt/jadx/jadx-*)" && mv "$jd"/* /opt/jadx/ && rmdir "$jd"; \
     fi; \
     ln -sf /opt/jadx/bin/jadx /usr/local/bin/jadx; \
-    rm -f /tmp/jadx.zip
+    rm -f /tmp/jadx.zip; \
+    chown -R ghost:ghost /opt/jadx
 
-# ---- MobSF + Quark ----
+# ---- MobSF (pinned) ----
 RUN set -eux; \
-    git clone --depth=1 https://github.com/MobSF/Mobile-Security-Framework-MobSF /opt/mobsf; \
-    /opt/ghost-venv/bin/pip install --no-cache-dir -r /opt/mobsf/requirements.txt || true; \
-    /opt/ghost-venv/bin/pip install --no-cache-dir quark-engine || true
+    git clone --depth=1 --branch "${MOBSF_REF}" \
+      https://github.com/MobSF/Mobile-Security-Framework-MobSF /opt/mobsf; \
+    rm -rf /opt/mobsf/.git; \
+    "${GHOST_VENV}/bin/pip" install --no-cache-dir -r /opt/mobsf/requirements.txt || true; \
+    chown -R ghost:ghost /opt/mobsf
 
-# ---- CLI shims ----
+# ---- venv shims ----
 RUN set -eux; \
-  mkdir -p /usr/local/bin; \
-  for n in frida-ps objection apkid mobsfscan androguard; do \
-    printf '%s\n' '#!/usr/bin/env bash' "exec /opt/ghost-venv/bin/${n} \"\$@\"" > "/usr/local/bin/${n}"; \
-    chmod +x "/usr/local/bin/${n}"; \
-  done
+    for n in frida-ps objection apkid mobsfscan androguard; do \
+      printf '%s\n' '#!/usr/bin/env bash' "exec /opt/ghost-venv/bin/${n} \"\$@\"" > "/usr/local/bin/${n}"; \
+      chmod +x "/usr/local/bin/${n}"; \
+    done
 
-# ---- Helper scripts ----
-RUN set -eux; \
-    printf '%s\n' '#!/usr/bin/env bash' \
-    'set -euo pipefail' \
-    'echo "[mobile] APK Analysis:"' \
-    'echo "  jadx -d ./decompiled app.apk"' \
-    'echo "  apkid app.apk"' \
-    'echo "  aapt dump badging app.apk"' \
-    'echo "  mobsfscan ./decompiled"' \
-    'echo "  androguard axml app.apk"' \
-    'echo "  objection explore"' \
-    > /usr/local/bin/gw-mobile-apk && chmod +x /usr/local/bin/gw-mobile-apk; \
-    printf '%s\n' '#!/usr/bin/env bash' \
-    'set -euo pipefail' \
-    'echo "[mobile] iOS IPA Analysis:"' \
-    'echo "  unzip -q app.ipa -d ./extracted"' \
-    'echo "  file Payload/*.app/*"' \
-    'echo "  r2 Payload/*.app/*"' \
-    'echo "  plutil -p Payload/*.app/Info.plist"' \
-    'echo "  objection -g app explore"' \
-    > /usr/local/bin/gw-mobile-ios && chmod +x /usr/local/bin/gw-mobile-ios; \
-    printf '%s\n' '#!/usr/bin/env bash' \
-    'set -euo pipefail' \
-    'echo "[mobile] Frida Usage:"' \
-    'echo "  frida-ps -U"' \
-    'echo "  frida -U -f com.app.name -l script.js"' \
-    'echo "  objection -g app explore"' \
-    'echo "  frida-trace -U -i open com.app"' \
-    > /usr/local/bin/gw-mobile-frida && chmod +x /usr/local/bin/gw-mobile-frida
+# ---- Mobile helpers ----
+RUN cat > /usr/local/bin/gw-mobile-apk <<'SH'
+#!/usr/bin/env bash
+echo "[mobile] APK analysis patterns:"
+echo "  jadx -d ./decompiled app.apk"
+echo "  apkid app.apk"
+echo "  aapt dump badging app.apk"
+echo "  mobsfscan ./decompiled"
+echo "  androguard axml app.apk"
+echo "  objection explore"
+SH
+RUN chmod +x /usr/local/bin/gw-mobile-apk
+RUN cat > /usr/local/bin/gw-mobile-ios <<'SH'
+#!/usr/bin/env bash
+echo "[mobile] iOS IPA patterns:"
+echo "  unzip -q app.ipa -d ./extracted"
+echo "  file Payload/*.app/*"
+echo "  r2 Payload/*.app/<binary>"
+echo "  plistutil -i Payload/*.app/Info.plist"
+echo "  objection -g app explore"
+SH
+RUN chmod +x /usr/local/bin/gw-mobile-ios
+RUN cat > /usr/local/bin/gw-mobile-frida <<'SH'
+#!/usr/bin/env bash
+echo "[mobile] Frida patterns:"
+echo "  frida-ps -U"
+echo "  frida -U -f com.app.name -l script.js"
+echo "  objection -g app explore"
+echo "  frida-trace -U -i open com.app"
+SH
+RUN chmod +x /usr/local/bin/gw-mobile-frida
 
-# ---- Copy shared scripts ----
-COPY scripts/session-log scripts/gw-versions /usr/local/bin/
+COPY scripts/gw-usb-capture /usr/local/bin/gw-usb-capture
+RUN chmod +x /usr/local/bin/gw-usb-capture
 
-# ---- smoke test ----
-COPY tests/smoke-test.sh /usr/local/bin/smoke-test
-
-# ---- QoL: prompt ----
-RUN ln -s /usr/bin/fdfind /usr/local/bin/fd || true && \
-    ln -s /usr/bin/batcat /usr/local/bin/bat || true
-COPY scripts/ghostwire-base.profile.sh /etc/profile.d/ghostwire-base.sh
 COPY scripts/ghostwire-mobile.profile.sh /etc/profile.d/ghostwire-mobile.sh
+RUN echo '. /etc/profile.d/ghostwire-mobile.sh' >> /home/ghost/.bashrc
 
-# ---- Non-root user ----
-RUN set -eux; \
-    groupadd -r ghost && useradd -m -g ghost -s /bin/bash ghost; \
-    mkdir -p /work "${ARTIFACTS}"; \
-    chown -R ghost:ghost /work "${ARTIFACTS}" /opt/ghost-venv /opt/jadx /opt/mobsf; \
-    printf 'ghost ALL=(ALL) NOPASSWD: /usr/bin/adb\n' > /etc/sudoers.d/ghost; \
-    chmod 0440 /etc/sudoers.d/ghost; \
-    echo '. /etc/profile.d/ghostwire-mobile.sh' >> /home/ghost/.bashrc
+RUN printf 'ghost ALL=(ALL) NOPASSWD: /usr/bin/adb\n' > /etc/sudoers.d/ghost && \
+    chmod 0440 /etc/sudoers.d/ghost
 
 USER ghost
 WORKDIR /work
 
-VOLUME ["/shared", "/work"]
-
 HEALTHCHECK --interval=5m --timeout=10s --start-period=20s --retries=3 \
-    CMD sh -c 'command -v adb >/dev/null 2>&1 && command -v jadx >/dev/null 2>&1 && command -v idevice_id >/dev/null 2>&1 || exit 1'
+  CMD sh -c 'command -v adb >/dev/null 2>&1 && command -v jadx >/dev/null 2>&1 && command -v idevice_id >/dev/null 2>&1 || exit 1'
 
-STOPSIGNAL SIGINT
 ENTRYPOINT ["/usr/bin/tini","--"]
 CMD ["/bin/bash"]

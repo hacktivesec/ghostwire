@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# gw-engagement — sourced by /etc/profile.d to expose ENGAGEMENT_DIR + cdgw.
+# Reads ~/.config/ghostwire/active and exports ENGAGEMENT_DIR + ENGAGEMENT.
+[ -n "${BASH_VERSION:-}" ] || return 0
+
+GW_ACTIVE_FILE="${HOME}/.config/ghostwire/active"
+if [ -f "${GW_ACTIVE_FILE}" ]; then
+  d="$(cat "${GW_ACTIVE_FILE}" 2>/dev/null)"
+  if [ -d "$d" ]; then
+    export ENGAGEMENT_DIR="$d"
+    export ENGAGEMENT="$(basename "$(dirname "$d")")"
+  fi
+  unset d
+fi
+
+cdgw() {
+  local d="${ENGAGEMENT_DIR:-$(cat "${GW_ACTIVE_FILE}" 2>/dev/null)}"
+  [ -n "$d" ] && [ -d "$d" ] || { echo "no active engagement (gw new <client>)" >&2; return 1; }
+  cd "$d"
+}
+
+# bash completion for gw subcommands
+_gw_complete() {
+  local cur prev
+  cur="${COMP_WORDS[COMP_CWORD]}"
+  prev="${COMP_WORDS[COMP_CWORD-1]}"
+  local subs="new use cd ls recon web fuzz ad mobile wifi report versions help"
+  if [ "${COMP_CWORD}" -eq 1 ]; then
+    COMPREPLY=( $(compgen -W "${subs}" -- "${cur}") )
+  fi
+}
+complete -F _gw_complete gw 2>/dev/null || true
