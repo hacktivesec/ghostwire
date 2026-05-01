@@ -52,8 +52,6 @@ APT: `nmap`, `masscan`, `tcpdump`, `tshark`, `tcpflow`, `ngrep`, `hydra`,
 
 Python venv: `scapy`, `impacket`.
 
-Pinned clones: `SecLists`.
-
 Go (pinned): `chisel`, `dnsx`, `httpx`, `subfinder`.
 
 ---

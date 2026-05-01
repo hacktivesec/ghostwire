@@ -22,8 +22,6 @@ LABEL org.opencontainers.image.title="ghostwire-net" \
 
 ENV GHOST_LABEL=net
 
-ARG SECLISTS_REF=2026.1
-
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
@@ -33,12 +31,6 @@ RUN set -eux; \
       sshuttle openvpn wireguard-tools \
       libplist-utils; \
     rm -rf /var/lib/apt/lists/*
-
-RUN set -eux; \
-    git clone --depth=1 --branch "${SECLISTS_REF}" \
-      https://github.com/danielmiessler/SecLists "${SECLISTS}"; \
-    rm -rf "${SECLISTS}/.git"; \
-    chown -R ghost:ghost "${SECLISTS}"
 
 RUN "${GHOST_VENV}/bin/pip" install --no-cache-dir \
       scapy impacket
