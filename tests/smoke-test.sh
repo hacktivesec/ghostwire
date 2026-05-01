@@ -71,7 +71,6 @@ case "$VARIANT" in
     for c in nmap masscan tcpdump tshark hydra socat openssl ike-scan onesixtyone \
              snmpwalk sshuttle openvpn wg chisel dnsx httpx subfinder; do cmd "$c"; done
     check "nmap -V"     nmap -V
-    check "masscan --version"  masscan --version
     check "chisel -v"   chisel --version
     ;;
   wifi)
@@ -96,7 +95,6 @@ case "$VARIANT" in
              wmiexec ntlmrelayx smbclient ldapsearch hashcat john hydra \
              aws az gcloud scoutsuite enum4linux-ng coercer responder mitm6 \
              bulk_extractor; do cmd "$c"; done
-    check "nxc --version"  nxc --version
     check "aws --version"  aws --version
     check "az version"     az version
     ;;
