@@ -59,11 +59,10 @@ case "$VARIANT" in
     echo
     echo "--- web ---"
     for c in nmap gobuster nikto whatweb wafw00f wfuzz arjun commix xsstrike testssl \
-             ffuf nuclei httpx dnsx katana subfinder waybackurls anew gf; do cmd "$c"; done
+             ffuf nuclei httpx dnsx subfinder waybackurls anew gf; do cmd "$c"; done
     check "ffuf -V"      ffuf -V
     check "nuclei -version" nuclei -version
     check "sqlmap --version" sqlmap --version
-    check "httpx -version" httpx -version
     ;;
   net)
     echo
