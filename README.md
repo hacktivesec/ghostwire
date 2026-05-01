@@ -1,304 +1,253 @@
-
 <p align="center">
-  <img src="https://github.com/hacktivesec/ghostwire/blob/main/Ghostwire.png" alt="Ghostwire" width="50%">
+  <img src="Ghostwire.png" alt="Ghostwire" width="50%">
 </p>
 
 <h1 align="center">ghostwire</h1>
 
 <p align="center">
-  A lean, no-nonsense <b>web / network / AD</b> toolkit that runs anywhere Docker runs.<br>
-  Bring your targets, scope, and a SOCKS pivot — ghostwire handles the rest.
+  A lean <b>web · network · AD · mobile · wifi · pivot</b> toolkit that runs anywhere Docker runs.<br>
+  Pull a variant, drop into a shell, run <code>gw recon target.com</code>.
 </p>
 
 <p align="center">
   <a href="#"><img alt="Ubuntu 24.04" src="https://img.shields.io/badge/base-Ubuntu%2024.04-EB5E28?logo=ubuntu&logoColor=white"></a>
-  <a href="#"><img alt="Docker + Compose" src="https://img.shields.io/badge/packaging-Docker%20%2B%20Compose-2496ED?logo=docker&logoColor=white"></a>
-  <a href="#"><img alt="Non-root default" src="https://img.shields.io/badge/user-ghost%20(non--root)-6C757D"></a>
-  <a href="#"><img alt="SecLists" src="https://img.shields.io/badge/wordlists-SecLists-0E7C86"></a>
+  <a href="#"><img alt="amd64+arm64" src="https://img.shields.io/badge/arch-amd64%20%7C%20arm64-1F6FEB"></a>
+  <a href="#"><img alt="Cosign signed" src="https://img.shields.io/badge/cosign-keyless%20OIDC-brightgreen"></a>
+  <a href="#"><img alt="SLSA L2" src="https://img.shields.io/badge/SLSA-L2%20provenance-A872E2"></a>
+  <a href="#"><img alt="Non-root" src="https://img.shields.io/badge/user-ghost%20(non--root)-6C757D"></a>
+  <a href="LICENSE"><img alt="CC0" src="https://img.shields.io/badge/license-CC0-0A0A0A"></a>
 </p>
 
 ---
 
-## Table of contents
-- [What's inside](#whats-inside)
-- [Requirements](#requirements)
-- [Repo layout](#repo-layout)
-- [Quick start](#quick-start)
-- [Using the SOCKS pivot](#using-the-socks-pivot)
-- [Common flows (consent / lab)](#common-flows-consent--lab)
-- [Files in/out](#files-inout)
-- [Self-test](#quick-self-test)
-- [Updating](#updating)
-- [Troubleshooting](#troubleshooting)
-- [Intended use](#intended-use)
-- [Credits](#credits)
+## Why ghostwire
+
+| | ghostwire | Kali / Parrot Docker | BlackArch | Custom Dockerfile |
+|---|---|---|---|---|
+| First-run time | **30 s** (pull from GHCR) | 5–20 min build | 30 min+ | hours |
+| Image size | 5 specialised, ~2 GB each | 1 mega image, 5–8 GB | 6+ GB | varies |
+| arm64 | **yes** | partial | partial | DIY |
+| Pinned deps | **every git clone, every Go module** | apt rolling | rolling | DIY |
+| Signed images | **cosign keyless OIDC** | no | no | DIY |
+| SBOM + SLSA provenance | **yes** | no | no | DIY |
+| Non-root by default | **yes** (ghost UID 1001) | no | no | DIY |
+| SOCKS-pivot first-class | **yes** (`px`, pivot variant) | no | no | DIY |
+| Engagement workflow | **`gw new client`** | none | none | DIY |
+| Reporting | **`gw report` → markdown** | none | none | DIY |
+
+If you want one container that just works on a fresh laptop, signed and reproducible — pick ghostwire. If you want a desktop OS in a container, pick Kali.
 
 ---
 
-## What's inside
-
-### Per image
+## Variants
 
 | Image | Tools |
 |-------|-------|
-| **web** | `ffuf`, `gobuster`, `nikto`, `sqlmap`, `wfuzz`, `whatweb`, `wafw00f`, `nuclei`, `xsstrike`, `testssl`, `arjun`, `commix`, `httpx`, `dnsx`, `katana`, `waybackurls`, `gospider` |
-| **net** | `nmap`, `masscan`, `tcpdump`, `tshark`, `chisel`, `socat`, `hydra`, `openvpn`, `sshuttle`, `wireguard`, `ike-scan`, `httpx`, `dnsx` |
-| **ad** | `nxc`, `bloodhound-python`, `certipy`, `kerbrute`, `responder`, `coercer`, `impacket` wrappers, `hashcat`, `john`, `hydra`, `aws`, `az`, `gcloud`, `scoutsuite`, `pacu`, `enum4linux-ng` |
-| **mobile** | `jadx`, `apktool`, `adb`, `frida-tools`, `objection`, `radare2`, `ipatool`, `mobsfscan`, `androguard` |
-| **wifi** | `aircrack-ng`, `reaver`, `pixiewps`, `hcxdumptool`, `hcxtools`, `tshark`, `tcpdump` |
+| **base** | `python3-venv`, `proxychains4`, `px`/`pxcurl`/`pxwget`, `gw` orchestrator, `ghost` user, `tini` |
+| **web** | `ffuf`, `gobuster`, `nikto`, `sqlmap`, `wfuzz`, `whatweb`, `wafw00f`, `nuclei`, `xsstrike`, `testssl`, `arjun`, `commix`, `httpx`, `dnsx`, `katana`, `subfinder`, `waybackurls`, `gospider`, `gf`, `anew`, `assetfinder`, `jaeles` |
+| **net** | `nmap`, `masscan`, `tcpdump`, `tshark`, `tcpflow`, `ngrep`, `chisel`, `socat`, `hydra`, `openvpn`, `sshuttle`, `wireguard-tools`, `ike-scan`, `onesixtyone`, `httpx`, `dnsx`, `subfinder` |
+| **ad** | `nxc`, `bloodhound-python`, `certipy`, `kerbrute`, `responder`, `mitm6`, `coercer`, `impacket` wrappers, `enum4linux-ng`, `hashcat`, `john`, `hydra`, `aws`, `az`, `gcloud`, `scoutsuite`, `pacu`, `bulk_extractor` |
+| **mobile** | `jadx`, `apktool`, `adb`, `frida-tools`, `objection`, `radare2`, `ipatool`, `mobsfscan`, `androguard`, `apkid`, `quark-engine`, `MobSF`, `yara` |
+| **wifi** | `aircrack-ng`, `reaver`, `pixiewps`, `hcxdumptool`, `hcxtools`, `tshark`, `tcpdump`, `iw`, `wpasupplicant` |
+| **pivot** | `microsocks`, `chisel`, `sshuttle`, `openvpn`, `wireguard-tools`, `openssh-server`, `iptables`, `nftables` |
 
-**All images:** SecLists at `$SECLISTS`, `proxychains4`, `px`/`pxcurl`/`pxwget` SOCKS wrappers
-
-### Helpers
-`px` (SOCKS5 wrapper) · `pxcurl` · `pxwget` · `savehere` · `out` · `session-log` · `update-seclists` · `gw-versions` · `smoke-test`
-Impacket wrappers: `psexec`, `wmiexec`, `secretsdump`, `ntlmrelayx`, `atexec`, `ticketer`, `GetUserSPNs`, `GetNPUsers`, `addcomputer`, `smbserver`
+All variants ship: SecLists at `$SECLISTS` (web/net/ad), `gw` orchestrator, `px`/`pxcurl`/`pxwget` SOCKS5 wrappers, `savehere`/`out`/`session-log`/`gw-versions`/`update-seclists`, non-root `ghost` user, healthcheck.
 
 ---
 
-## Requirements
-- Docker **and** Docker Compose v2
-- For **SOCKS:** reachable SOCKS5 proxy (default `127.0.0.1:1080`)
-
-
----
-
-## Repo layout
-
-```
-Dockerfile.web            → web recon + vuln scanning
-Dockerfile.net            → network recon + tunneling
-Dockerfile.ad             → Active Directory + cloud
-Dockerfile.mobile         → Android & iOS
-Dockerfile.wifi           → wireless
-docker-compose.yml        → recommended way to build/run
-docker-compose.merged.yml → all services, tagged images
-scripts/                  → shared helper scripts (COPY'd into images)
-tests/smoke-test.sh       → per-variant tool presence check
-Makefile                  → convenience targets
-.github/workflows/        → CI: lint, build, smoke test
-```
-
----
-
-## Quick start
-
-### Using Make (easiest)
+## Quick start (pull, don't build)
 
 ```bash
-make web            # build & start the web container
-make shell          # drop into it
-make test           # run smoke tests
-
-# or pick a variant
-make ad             # AD + cloud
-make shell-ad       # shell into AD container
-make test-web       # smoke test web image
-```
-
-### Using Compose
-
-```bash
-# build & start a variant
-docker compose up -d web    # or net|wifi|mobile|ad
-docker compose exec web bash
-docker compose down
-```
-
-### Docker CLI
-
-```bash
-mkdir -p artifacts
-docker build -t ghostwire:web -f Dockerfile.web .
+docker pull ghcr.io/wnoelll/ghostwire-web:latest
 docker run --rm -it --network host \
   -e SOCKS5_HOST=127.0.0.1 -e SOCKS5_PORT=1080 \
   -v "$PWD:/work" -v "$PWD/artifacts:/shared" \
-  --name ghostwire ghostwire:web
+  ghcr.io/wnoelll/ghostwire-web:latest
 ```
 
-### Docker Desktop (Mac/Windows)
+Or with compose (default = pull from GHCR):
 
 ```bash
-# .env: SOCKS5_HOST=host.docker.internal
 docker compose up -d web
 docker compose exec web bash
 ```
 
-### WiFi capture (Linux, needs caps)
+### Verify the image (cosign)
 
 ```bash
-make wifi
-docker compose exec wifi bash
-wifi-mon wlan0 on
-wifi-capture wlan0
+cosign verify \
+  --certificate-identity-regexp 'https://github.com/wnoelll/ghostwire/.*' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  ghcr.io/wnoelll/ghostwire-web:latest
 ```
 
 ---
 
-## Using the SOCKS pivot
+## The `gw` orchestrator
 
-### Linking to a VPN jumpbox
-
-If you run a VPN container (e.g. a SOCKS5 proxy on port `1080`), ghostwire can reach it over a shared Docker network:
-
-```bash
-# 1. Create the shared network (once)
-docker network create vpn
-
-# 2. Start your VPN container on that network
-docker run -d --name vpn-jumpbox --network vpn \
-  -p 127.0.0.1:1080:1080 your-vpn-image
-
-# 3. Point ghostwire at it (in .env)
-VPN_NETWORK=vpn
-SOCKS5_HOST=vpn-jumpbox
-SOCKS5_PORT=1080
-
-# 4. Start ghostwire — containers join the vpn network automatically
-docker compose up -d web
-```
-
-On Docker Desktop (Mac/Windows) without a shared network, use `SOCKS5_HOST=host.docker.internal` in `.env`.
-
-### Using the proxy
-
-**One-off via wrapper**
+`gw` is a single command that runs the common flows for you and stores output in
+a tidy engagement directory under `/shared/<client>/<UTC-date>/`.
 
 ```bash
-px curl -I https://example.com
-px gobuster dir -u https://example.com \
-  -w "$SECLISTS/Discovery/Web-Content/directory-list-2.3-medium.txt" \
-  -x php,js,html -o /shared/gobuster.txt
-px sqlmap -u "https://example.com/?id=1" --batch
-px nmap -sT -Pn -n example.com
+# Inside any variant container:
+
+gw new acme                       # /shared/acme/2026-05-01_103045/{recon,scans,...}
+gw recon acme.com                 # subfinder | httpx | nuclei pipeline
+gw web https://app.acme.com       # whatweb + wafw00f + nuclei + nikto + gobuster
+gw fuzz "https://acme.com/FUZZ"   # ffuf with directory-list-2.3-medium
+gw ad 10.0.0.10 alice 'P@ss'      # nxc + kerbrute + bloodhound + certipy
+gw mobile app.apk                 # jadx + apkid + apktool + mobsfscan
+gw wifi wlan0                     # airodump capture
+gw report                         # consolidate everything into markdown
+gw ls                             # show all engagements
+cdgw                              # cd into the active one
 ```
 
-**Environment-wide**
+Output goes into `/shared/<client>/<date>/{recon,scans,creds,loot,reports,logs}`.
+Set `ENGAGEMENT_DIR` to override the active engagement; otherwise `gw new`/`gw use`
+persists it to `~/.config/ghostwire/active`.
 
-```bash
-export ALL_PROXY="socks5h://${SOCKS5_HOST}:${SOCKS5_PORT}"
-export HTTP_PROXY="$ALL_PROXY" HTTPS_PROXY="$ALL_PROXY" NO_PROXY="127.0.0.1,localhost"
-```
-
-> Raw SYN/UDP scans & packet capture do **not** traverse SOCKS.
+`gw help` for the full list.
 
 ---
 
-## Common flows (consent / lab)
+## SOCKS pivot (the whole point)
 
-**Subdomains → probe → scan → nuclei**
+### Run the pivot variant as your jumpbox
 
 ```bash
-subfinder -silent -d example.com | anew /shared/subs.txt
-httpx -silent -status-code -title -follow -l /shared/subs.txt -o /shared/httpx.txt
-masscan -p1-65535,U:1-65535 --rate 5000 -iL /shared/subs.txt -oL /shared/masscan.txt || true
-nuclei -l /shared/httpx.txt -o /shared/nuclei.txt
+docker run -d --name pivot --network vpn \
+  -p 127.0.0.1:1080:1080 -p 8080:8080 \
+  ghcr.io/wnoelll/ghostwire-pivot:latest \
+  gw-socks5 1080
 ```
 
-**Fuzz (dirs/params)**
+### Or use chisel reverse SOCKS
 
 ```bash
-ffuf -u https://example.com/FUZZ -w "$SECLISTS/Discovery/Web-Content/common.txt" -o /shared/ffuf.json
-wfuzz -u https://example.com/page?FUZZ=1 -w "$SECLISTS/Discovery/Web-Content/burp-parameter-names.txt"
-arjun -u https://example.com/page -oT /shared/arjun_params.txt
+# This side (operator):
+docker run --rm -it -p 8080:8080 ghcr.io/wnoelll/ghostwire-pivot:latest \
+  gw-chisel-server 8080
+
+# Compromised box:
+chisel client your-host:8080 R:1080:socks
 ```
 
-**Active Directory**
+### Use the pivot from any other variant
 
 ```bash
-nxc smb 10.0.0.0/24 -u user -p '***' --shares
-responder -I eth0 -dwPv
-mitm6 -d lab.local
-bloodhound-python -d lab.local -u user -p '***' -ns 10.0.0.10 -c All
-certipy find -u user@lab.local -p '***' -dc-ip 10.0.0.10
+docker run --rm -it --network vpn \
+  -e SOCKS5_HOST=pivot -e SOCKS5_PORT=1080 \
+  -v "$PWD:/work" -v "$PWD/artifacts:/shared" \
+  ghcr.io/wnoelll/ghostwire-web:latest
+
+# Then:
+px curl -I https://internal.target
+px gw recon internal.target
 ```
 
-**Cloud audit**
+> Raw SYN/UDP scans and packet capture do **not** traverse SOCKS5 — they're L3.
+
+---
+
+## Files in / out
+
+* `/work` — your repo or workspace, bind-mounted r/w
+* `/shared` — artifacts dir, mapped to `./artifacts/` on the host
+* `/shared/<client>/<UTC-date>/` — created by `gw new`
 
 ```bash
-scoutsuite aws --access-keys-id <key> --secret-access-key <secret>
+savehere report.txt                  # copy to /shared
+out nmap -sC -sV target              # tee output to /shared/nmap_<ts>.log
+gw-versions /shared/versions.txt     # tool manifest
+```
+
+---
+
+## Build locally (don't pull from GHCR)
+
+```bash
+make base          # build shared base first (one time)
+make build-all     # build base + every variant locally
+make test-all      # smoke-test every variant
+make web           # build & start one variant
+make shell-ad      # shell into ad container
+make prune         # remove all images and clean buildx cache
+```
+
+Local images are tagged `ghostwire-<variant>:dev`. Compose picks them up when
+`GHOSTWIRE_IMAGE_TAG=local`.
+
+---
+
+## CI / supply chain
+
+Every push to `main` and every `v*` tag rebuilds and publishes:
+
+- **GHCR**: `ghcr.io/wnoelll/ghostwire-{base,web,net,ad,mobile,wifi,pivot}`
+- **Architectures**: `linux/amd64` and `linux/arm64`
+- **Cosign**: keyless OIDC signature on every digest
+- **SLSA**: build-provenance attestation
+- **SBOM**: syft SPDX, attached as image attestation
+- **Trivy scan**: HIGH/CRITICAL surfaced (non-blocking)
+
+Verify any tag with `cosign verify` (recipe in [SECURITY.md](SECURITY.md)).
+
+---
+
+## Common flows (consent / lab only)
+
+```bash
+# Subdomains → probe → fuzz
+gw recon example.com
+gw fuzz "https://example.com/FUZZ"
+
+# Active Directory
+gw ad 10.0.0.10 alice 'P@ss'
+
+# Cloud audit
+scoutsuite aws --access-keys-id <k> --secret-access-key <s>
 pacu
-trivy fs --severity MEDIUM,HIGH,CRITICAL .
-```
 
-**Mobile**
+# Mobile
+gw mobile app.apk
 
-```bash
-jadx -d /shared/jadx app.apk
-apktool d app.apk -o /shared/app
-objection explore
-frida-ps -U
-```
-
-**Forensics**
-
-```bash
-foremost -i disk.img -o /shared/foremost
+# Forensics
 bulk_extractor -o /shared/be_out disk.img
-exiftool sample.jpg
 ```
-
----
-
-## Files in/out
-
-* Work in **`/work`** (bind-mounted from your repo root)
-* Export artifacts to **`/shared`** (bind-mounted to `./artifacts`)
-
-```bash
-savehere report.txt
-out nmap -sC -sV target
-gw-versions /shared/versions.txt
-```
-
----
-
-## Quick self-test
-
-```bash
-# automated (inside the container)
-smoke-test web    # or net|wifi|mobile|ad
-
-# manual spot check
-whoami && pwd
-nmap --version
-gw-versions
-```
-
----
-
-## Build args, env & volumes
-
-* **Build args:** `BASE_IMAGE=ubuntu:24.04`
-* **Environment:** `SOCKS5_HOST`, `SOCKS5_PORT`, `SECLISTS=/opt/seclists`, `ARTIFACTS=/shared`
-* **Volumes:** `/shared` (artifacts), `/work` (workspace)
-* **Healthcheck:** verifies core tools are reachable
 
 ---
 
 ## Updating
 
-* **SecLists:** `update-seclists`
-* **APT tools:** `sudo apt-get update && sudo apt-get upgrade`
-* **Python/Go/Ruby tools:** rebuild the image
+* **SecLists**: `update-seclists` (in-container) — refreshes to current upstream
+* **Container itself**: `docker pull ghcr.io/wnoelll/ghostwire-<variant>:latest`
+* **Pin tracking**: dependabot opens weekly PRs for action and Docker FROM bumps
 
 ---
 
 ## Troubleshooting
 
-* **"container name already in use"** — `docker rm -f ghostwire` or use `--name ghostwire2`
-* **Windows path issues** — prefer `--mount` or forward slashes
-* **SOCKS not reachable** — on Docker Desktop use `host.docker.internal`
+| Symptom | Fix |
+|---|---|
+| `container name already in use` | `docker rm -f ghostwire-<variant>` or use `--name` |
+| Windows path mounts fail | use forward slashes or `--mount` |
+| SOCKS unreachable on Docker Desktop | set `SOCKS5_HOST=host.docker.internal` |
+| arm64 build fails on a tool | open an issue with the variant + Dockerfile line |
+| Healthcheck red | `docker logs <container>` and `smoke-test <variant>` |
 
 ---
 
 ## Intended use
 
-**Red team / pentest / DFIR / training only — on systems you own or have explicit written permission to test.**
-You are responsible for complying with laws, contracts, and your Rules of Engagement.
+**Red team / pentest / DFIR / training only — on systems you own or have explicit
+written permission to test.** You are responsible for laws, contracts, and your
+Rules of Engagement. See [SECURITY.md](SECURITY.md).
 
 ---
 
 ## Credits
 
-This image repackages work from many OSS projects (see individual repos/licenses).
-OCI labels are included in the image metadata.
+ghostwire repackages work from many OSS projects. Each tool's licence applies in
+the image where it ships; OCI labels capture provenance. Pinned tool versions
+are listed in `Dockerfile.<variant>` and in this repo's `CHANGELOG.md`.

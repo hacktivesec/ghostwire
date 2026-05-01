@@ -1,8 +1,11 @@
 name: ghostwire
 
+# .env (gitignored) is auto-loaded if present; defaults below cover the unset case.
+# Variant images are pulled from GHCR by default. Set GHOSTWIRE_IMAGE_TAG=local
+# and run `make build` to use locally-built images instead.
+
 x-common: &common
   restart: unless-stopped
-  env_file: [.env]
   volumes:
     - ./:/work
     - ./artifacts:/shared
@@ -16,60 +19,76 @@ x-common: &common
     - vpn
 
 services:
+  base:
+    <<: *common
+    image: ${GHOSTWIRE_IMAGE_PREFIX:-ghcr.io/wnoelll/ghostwire}-base:${GHOSTWIRE_IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+      tags: [ghostwire-base:dev]
+    profiles: [build]
+
   web:
     <<: *common
+    image: ${GHOSTWIRE_IMAGE_PREFIX:-ghcr.io/wnoelll/ghostwire}-web:${GHOSTWIRE_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.web
     container_name: ghostwire-web
-    environment:
-      <<: *common-env
-      GHOST_LABEL: web
+    environment: { <<: *common-env, GHOST_LABEL: web }
 
   net:
     <<: *common
+    image: ${GHOSTWIRE_IMAGE_PREFIX:-ghcr.io/wnoelll/ghostwire}-net:${GHOSTWIRE_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.net
     container_name: ghostwire-net
-    environment:
-      <<: *common-env
-      GHOST_LABEL: network
+    environment: { <<: *common-env, GHOST_LABEL: net }
 
   wifi:
     <<: *common
+    image: ${GHOSTWIRE_IMAGE_PREFIX:-ghcr.io/wnoelll/ghostwire}-wifi:${GHOSTWIRE_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.wifi
     container_name: ghostwire-wifi
     cap_add: ["NET_RAW", "NET_ADMIN"]
-    environment:
-      <<: *common-env
-      GHOST_LABEL: wifi
+    environment: { <<: *common-env, GHOST_LABEL: wifi }
 
   mobile:
     <<: *common
+    image: ${GHOSTWIRE_IMAGE_PREFIX:-ghcr.io/wnoelll/ghostwire}-mobile:${GHOSTWIRE_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.mobile
     container_name: ghostwire-mobile
-    environment:
-      <<: *common-env
-      GHOST_LABEL: mobile
+    environment: { <<: *common-env, GHOST_LABEL: mobile }
 
   ad:
     <<: *common
+    image: ${GHOSTWIRE_IMAGE_PREFIX:-ghcr.io/wnoelll/ghostwire}-ad:${GHOSTWIRE_IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.ad
     container_name: ghostwire-ad
-    environment:
-      <<: *common-env
-      GHOST_LABEL: ad
+    environment: { <<: *common-env, GHOST_LABEL: ad }
+
+  pivot:
+    <<: *common
+    image: ${GHOSTWIRE_IMAGE_PREFIX:-ghcr.io/wnoelll/ghostwire}-pivot:${GHOSTWIRE_IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.pivot
+    container_name: ghostwire-pivot
+    cap_add: ["NET_ADMIN"]
+    ports:
+      - "1080:1080"
+      - "8080:8080"
+    environment: { <<: *common-env, GHOST_LABEL: pivot }
 
 networks:
   default:
   vpn:
     external: true
     name: ${VPN_NETWORK:-vpn}
-
