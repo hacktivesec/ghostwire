@@ -6,7 +6,7 @@ If you find a security issue **in ghostwire itself** (e.g. a build that pulls a
 compromised dependency, a privilege escalation in the image, a leaking
 container default), report it privately:
 
-- **GitHub Security Advisories**: https://github.com/wnoelll/ghostwire/security/advisories/new
+- **GitHub Security Advisories**: https://github.com/hacktivesec/ghostwire/security/advisories/new
 - **Email** (alternative): see `git log --format='%ae' | sort -u | head -1`
 
 Please include:
@@ -38,9 +38,9 @@ provenance attached. Verify before pulling into production:
 
 ```sh
 cosign verify \
-  --certificate-identity-regexp 'https://github.com/wnoelll/ghostwire/.*' \
+  --certificate-identity-regexp 'https://github.com/hacktivesec/ghostwire/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/wnoelll/ghostwire-web:latest
+  ghcr.io/hacktivesec/ghostwire-web:latest
 ```
 
 ## Intended use

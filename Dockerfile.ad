@@ -37,7 +37,7 @@ USER root
 
 LABEL org.opencontainers.image.title="ghostwire-ad" \
       org.opencontainers.image.description="Active Directory & Cloud penetration testing" \
-      org.opencontainers.image.source="https://github.com/wnoelll/ghostwire"
+      org.opencontainers.image.source="https://github.com/hacktivesec/ghostwire"
 
 ENV GHOST_LABEL=ad
 

@@ -58,11 +58,11 @@ All variants ship: SecLists at `$SECLISTS` (web/net/ad), `gw` orchestrator, `px`
 ## Quick start (pull, don't build)
 
 ```bash
-docker pull ghcr.io/wnoelll/ghostwire-web:latest
+docker pull ghcr.io/hacktivesec/ghostwire-web:latest
 docker run --rm -it --network host \
   -e SOCKS5_HOST=127.0.0.1 -e SOCKS5_PORT=1080 \
   -v "$PWD:/work" -v "$PWD/artifacts:/shared" \
-  ghcr.io/wnoelll/ghostwire-web:latest
+  ghcr.io/hacktivesec/ghostwire-web:latest
 ```
 
 Or with compose (default = pull from GHCR):
@@ -76,9 +76,9 @@ docker compose exec web bash
 
 ```bash
 cosign verify \
-  --certificate-identity-regexp 'https://github.com/wnoelll/ghostwire/.*' \
+  --certificate-identity-regexp 'https://github.com/hacktivesec/ghostwire/.*' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/wnoelll/ghostwire-web:latest
+  ghcr.io/hacktivesec/ghostwire-web:latest
 ```
 
 ---
@@ -118,7 +118,7 @@ persists it to `~/.config/ghostwire/active`.
 ```bash
 docker run -d --name pivot --network vpn \
   -p 127.0.0.1:1080:1080 -p 8080:8080 \
-  ghcr.io/wnoelll/ghostwire-pivot:latest \
+  ghcr.io/hacktivesec/ghostwire-pivot:latest \
   gw-socks5 1080
 ```
 
@@ -126,7 +126,7 @@ docker run -d --name pivot --network vpn \
 
 ```bash
 # This side (operator):
-docker run --rm -it -p 8080:8080 ghcr.io/wnoelll/ghostwire-pivot:latest \
+docker run --rm -it -p 8080:8080 ghcr.io/hacktivesec/ghostwire-pivot:latest \
   gw-chisel-server 8080
 
 # Compromised box:
@@ -139,7 +139,7 @@ chisel client your-host:8080 R:1080:socks
 docker run --rm -it --network vpn \
   -e SOCKS5_HOST=pivot -e SOCKS5_PORT=1080 \
   -v "$PWD:/work" -v "$PWD/artifacts:/shared" \
-  ghcr.io/wnoelll/ghostwire-web:latest
+  ghcr.io/hacktivesec/ghostwire-web:latest
 
 # Then:
 px curl -I https://internal.target
@@ -184,7 +184,7 @@ Local images are tagged `ghostwire-<variant>:dev`. Compose picks them up when
 
 Every push to `main` and every `v*` tag rebuilds and publishes:
 
-- **GHCR**: `ghcr.io/wnoelll/ghostwire-{base,web,net,ad,mobile,wifi,pivot}`
+- **GHCR**: `ghcr.io/hacktivesec/ghostwire-{base,web,net,ad,mobile,wifi,pivot}`
 - **Architectures**: `linux/amd64` and `linux/arm64`
 - **Cosign**: keyless OIDC signature on every digest
 - **SLSA**: build-provenance attestation
@@ -221,7 +221,7 @@ bulk_extractor -o /shared/be_out disk.img
 ## Updating
 
 * **SecLists**: `update-seclists` (in-container) — refreshes to current upstream
-* **Container itself**: `docker pull ghcr.io/wnoelll/ghostwire-<variant>:latest`
+* **Container itself**: `docker pull ghcr.io/hacktivesec/ghostwire-<variant>:latest`
 * **Pin tracking**: dependabot opens weekly PRs for action and Docker FROM bumps
 
 ---

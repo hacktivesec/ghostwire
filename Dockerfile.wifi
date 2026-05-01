@@ -6,7 +6,7 @@ USER root
 
 LABEL org.opencontainers.image.title="ghostwire-wifi" \
       org.opencontainers.image.description="Wireless security toolkit" \
-      org.opencontainers.image.source="https://github.com/wnoelll/ghostwire"
+      org.opencontainers.image.source="https://github.com/hacktivesec/ghostwire"
 
 ENV GHOST_LABEL=wifi
 

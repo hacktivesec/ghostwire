@@ -5,7 +5,7 @@
 COMPOSE      := docker compose
 COMPOSE_BUILD:= GHOSTWIRE_IMAGE_TAG=local GHOSTWIRE_IMAGE_PREFIX=ghostwire $(COMPOSE)
 REGISTRY     := ghcr.io
-IMAGE_OWNER  := wnoelll
+IMAGE_OWNER  := hacktivesec
 TAG          := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 
 help: ## Show this help

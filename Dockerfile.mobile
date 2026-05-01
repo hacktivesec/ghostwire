@@ -17,7 +17,7 @@ USER root
 
 LABEL org.opencontainers.image.title="ghostwire-mobile" \
       org.opencontainers.image.description="Mobile security toolkit (Android & iOS)" \
-      org.opencontainers.image.source="https://github.com/wnoelll/ghostwire"
+      org.opencontainers.image.source="https://github.com/hacktivesec/ghostwire"
 
 ENV GHOST_LABEL=mobile
 

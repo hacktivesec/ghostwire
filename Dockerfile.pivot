@@ -14,7 +14,7 @@ USER root
 
 LABEL org.opencontainers.image.title="ghostwire-pivot" \
       org.opencontainers.image.description="SOCKS5 / WireGuard / SSH jumpbox for tunneling" \
-      org.opencontainers.image.source="https://github.com/wnoelll/ghostwire"
+      org.opencontainers.image.source="https://github.com/hacktivesec/ghostwire"
 
 ENV GHOST_LABEL=pivot
 

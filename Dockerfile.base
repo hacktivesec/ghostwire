@@ -5,7 +5,7 @@ FROM ${BASE_IMAGE}
 LABEL org.opencontainers.image.title="ghostwire-base" \
       org.opencontainers.image.description="Shared base for all ghostwire variants" \
       org.opencontainers.image.vendor="ghostwire" \
-      org.opencontainers.image.source="https://github.com/wnoelll/ghostwire" \
+      org.opencontainers.image.source="https://github.com/hacktivesec/ghostwire" \
       org.opencontainers.image.licenses="CC0-1.0"
 
 ENV DEBIAN_FRONTEND=noninteractive \
