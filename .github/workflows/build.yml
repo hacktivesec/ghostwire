@@ -102,6 +102,10 @@ jobs:
           # for arm64 in the Ubuntu noble repos — keep this variant amd64 only.
           - variant: wifi
             platforms: linux/amd64
+          # NetExec pulls aardwolf, which has no Linux-arm64 wheel on PyPI and
+          # no working source-build path. Keep ad amd64 only until upstream ships one.
+          - variant: ad
+            platforms: linux/amd64
     steps:
       - uses: actions/checkout@v4
 
