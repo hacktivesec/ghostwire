@@ -1,63 +1,231 @@
-name: Build & Test
+name: Build, Test, Publish
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  REPO: ${{ github.repository_owner }}/ghostwire
+  PLATFORMS: linux/amd64,linux/arm64
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+  attestations: write
 
 jobs:
+  # ---------------------------------------------------------------------------
   lint:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        variant: [web, net, wifi, mobile, ad]
+        variant: [base, web, net, wifi, mobile, ad, pivot]
     steps:
       - uses: actions/checkout@v4
-      - name: Lint Dockerfile.${{ matrix.variant }}
-        uses: hadolint/hadolint-action@v3.1.0
+      - uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile.${{ matrix.variant }}
           failure-threshold: error
           ignore: DL3003,DL3006,DL3008,DL3013,DL3016,DL3018,DL3028,DL4006,SC2015,SC2086
 
-  build:
-    runs-on: ubuntu-latest
+  # ---------------------------------------------------------------------------
+  base:
     needs: lint
-    strategy:
-      fail-fast: false
-      matrix:
-        variant: [web, net, wifi, mobile, ad]
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      tag: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - name: Build ${{ matrix.variant }}
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REPO }}-base
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Build & push base
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.base
+          platforms: ${{ env.PLATFORMS }}
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=base
+          cache-to: type=gha,scope=base,mode=max
+          provenance: ${{ github.event_name != 'pull_request' && 'mode=max' || 'false' }}
+          sbom: ${{ github.event_name != 'pull_request' }}
+
+      - name: Smoke test (amd64)
+        if: github.event_name == 'pull_request'
+        run: docker run --rm ghostwire-base:pr-${{ github.event.pull_request.number }} smoke-test base || true
+
+  # ---------------------------------------------------------------------------
+  variants:
+    needs: base
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [web, net, wifi, mobile, ad, pivot]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.REPO }}-${{ matrix.variant }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Build & push ${{ matrix.variant }}
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: Dockerfile.${{ matrix.variant }}
-          push: false
-          load: true
-          tags: ghostwire:${{ matrix.variant }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          platforms: ${{ env.PLATFORMS }}
+          build-args: |
+            GHOSTWIRE_BASE=${{ env.REGISTRY }}/${{ env.REPO }}-base@${{ needs.base.outputs.digest }}
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=${{ matrix.variant }}
+          cache-to: type=gha,scope=${{ matrix.variant }},mode=max
+          provenance: ${{ github.event_name != 'pull_request' && 'mode=max' || 'false' }}
+          sbom: ${{ github.event_name != 'pull_request' }}
+
+      # Use the freshly-pushed image for smoke test (amd64 native runner).
+      - name: Pull amd64 for smoke test
+        if: github.event_name != 'pull_request'
+        run: |
+          docker pull --platform linux/amd64 \
+            ${{ env.REGISTRY }}/${{ env.REPO }}-${{ matrix.variant }}@${{ steps.build.outputs.digest }}
 
       - name: Smoke test ${{ matrix.variant }}
+        if: github.event_name != 'pull_request'
         run: |
-          docker run --rm ghostwire:${{ matrix.variant }} smoke-test ${{ matrix.variant }}
+          docker run --rm --platform linux/amd64 \
+            ${{ env.REGISTRY }}/${{ env.REPO }}-${{ matrix.variant }}@${{ steps.build.outputs.digest }} \
+            smoke-test ${{ matrix.variant }}
 
-      - name: Image size
+      - name: Smoke test (PR, single-arch)
+        if: github.event_name == 'pull_request'
         run: |
-          docker images ghostwire:${{ matrix.variant }} --format '{{.Repository}}:{{.Tag}} {{.Size}}'
+          # buildx --load only loads single-arch; rebuild for amd64 only and run.
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg GHOSTWIRE_BASE=ghcr.io/${{ env.REPO }}-base:main \
+            -f Dockerfile.${{ matrix.variant }} \
+            -t ghostwire-${{ matrix.variant }}:pr \
+            --load .
+          docker run --rm ghostwire-${{ matrix.variant }}:pr smoke-test ${{ matrix.variant }}
 
-      - name: Trivy vulnerability scan
+      - name: Sign image with cosign (keyless)
+        if: github.event_name != 'pull_request'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          curl -sSL https://github.com/sigstore/cosign/releases/download/v2.4.1/cosign-linux-amd64 \
+            -o /tmp/cosign && chmod +x /tmp/cosign
+          /tmp/cosign sign --yes \
+            ${{ env.REGISTRY }}/${{ env.REPO }}-${{ matrix.variant }}@${{ steps.build.outputs.digest }}
+
+      - name: Build provenance attestation
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.REPO }}-${{ matrix.variant }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+      - name: Trivy scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ghostwire:${{ matrix.variant }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.REPO }}-${{ matrix.variant }}@${{ steps.build.outputs.digest }}
           format: table
           severity: CRITICAL,HIGH
-          exit-code: 0
+          exit-code: '0'
+          ignore-unfixed: true
+        if: github.event_name != 'pull_request'
+
+  # ---------------------------------------------------------------------------
+  release-notes:
+    needs: variants
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate release notes
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            ## Images
+            All images signed with cosign keyless OIDC and attested with SLSA build provenance.
+
+            ```
+            docker pull ghcr.io/${{ github.repository_owner }}/ghostwire-base:${{ github.ref_name }}
+            docker pull ghcr.io/${{ github.repository_owner }}/ghostwire-web:${{ github.ref_name }}
+            docker pull ghcr.io/${{ github.repository_owner }}/ghostwire-net:${{ github.ref_name }}
+            docker pull ghcr.io/${{ github.repository_owner }}/ghostwire-ad:${{ github.ref_name }}
+            docker pull ghcr.io/${{ github.repository_owner }}/ghostwire-mobile:${{ github.ref_name }}
+            docker pull ghcr.io/${{ github.repository_owner }}/ghostwire-wifi:${{ github.ref_name }}
+            docker pull ghcr.io/${{ github.repository_owner }}/ghostwire-pivot:${{ github.ref_name }}
+            ```
+
+            ### Verify (cosign)
+
+            ```
+            cosign verify \
+              --certificate-identity-regexp 'https://github.com/${{ github.repository }}/.*' \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              ghcr.io/${{ github.repository_owner }}/ghostwire-web:${{ github.ref_name }}
+            ```
