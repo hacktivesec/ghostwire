@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+echo "[cloud] Cloud audit patterns:"
+echo "AWS:    scoutsuite aws --access-keys-id <k> --secret-access-key <s>"
+echo "        pacu  /  aws sts get-caller-identity"
+echo "Azure:  scoutsuite azure --cli  /  az account list"
+echo "GCP:    scoutsuite gcp --user-account  /  gcloud projects list"

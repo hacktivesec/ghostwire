@@ -39,38 +39,8 @@ RUN "${GHOST_VENV}/bin/pip" install --no-cache-dir \
 COPY --from=gobuilder /go/bin/ /usr/local/bin/
 
 # ---- Net helper aliases ----
-RUN set -eux; \
-    cat > /usr/local/bin/gw-net-scan <<'SH'
-#!/usr/bin/env bash
-echo "[net] Quick network assessment patterns:"
-echo "  nmap -sC -sV -oA scan <target>"
-echo "  masscan -p1-1000 <target> --rate=1000"
-echo "  dnsx -d domain.com -a -aaaa -cname"
-echo "  httpx -l hosts.txt -status-code"
-echo "  ike-scan -A <target>"
-echo "  onesixtyone <target>"
-SH
-RUN chmod +x /usr/local/bin/gw-net-scan
-RUN cat > /usr/local/bin/gw-net-tunnel <<'SH'
-#!/usr/bin/env bash
-echo "[net] Tunneling & pivoting patterns:"
-echo "  chisel server -p 8080 --reverse"
-echo "  chisel client server:8080 R:1080:socks"
-echo "  sshuttle -r user@jumpbox 10.0.0.0/8"
-echo "  openvpn config.ovpn"
-echo "  wg-quick up wg0.conf"
-echo "  px nmap -sT target"
-SH
-RUN chmod +x /usr/local/bin/gw-net-tunnel
-RUN cat > /usr/local/bin/gw-net-traffic <<'SH'
-#!/usr/bin/env bash
-echo "[net] Traffic analysis patterns:"
-echo "  tcpdump -i any -w capture.pcap"
-echo "  tshark -r capture.pcap -Y http"
-echo "  tcpflow -r capture.pcap"
-echo "  ngrep -d any -W byline port 80"
-SH
-RUN chmod +x /usr/local/bin/gw-net-traffic
+COPY scripts/gw-net-scan scripts/gw-net-tunnel scripts/gw-net-traffic /usr/local/bin/
+RUN chmod +x /usr/local/bin/gw-net-scan /usr/local/bin/gw-net-tunnel /usr/local/bin/gw-net-traffic
 
 COPY scripts/ghostwire-net.profile.sh /etc/profile.d/ghostwire-net.sh
 RUN echo '. /etc/profile.d/ghostwire-net.sh' >> /home/ghost/.bashrc

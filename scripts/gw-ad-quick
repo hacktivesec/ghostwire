@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+echo "[ad] Quick AD assessment:"
+echo "  nxc smb <target> -u '' -p '' --shares"
+echo "  nxc smb <target> -u user -p pass --shares"
+echo "  bloodhound-python -d domain -u user -p pass -ns <dc> -c All"
+echo "  kerbrute userenum -d domain --dc <dc> users.txt"
+echo "  GetNPUsers domain/ -dc-ip <dc> -no-pass -usersfile users.txt"
+echo "  GetUserSPNs domain/user:pass -dc-ip <dc>"
+echo "  responder -I eth0 -dwPv"
+echo "  mitm6 -d domain.local"
+echo "  certipy find -u user@domain -p pass -dc-ip <dc>"
+echo "  coercer scan -t <target> -u user -p pass -d domain"

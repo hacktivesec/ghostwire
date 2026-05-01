@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+echo "[net] Traffic analysis patterns:"
+echo "  tcpdump -i any -w capture.pcap"
+echo "  tshark -r capture.pcap -Y http"
+echo "  tcpflow -r capture.pcap"
+echo "  ngrep -d any -W byline port 80"

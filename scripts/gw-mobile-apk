@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+echo "[mobile] APK analysis patterns:"
+echo "  jadx -d ./decompiled app.apk"
+echo "  apkid app.apk"
+echo "  aapt dump badging app.apk"
+echo "  mobsfscan ./decompiled"
+echo "  androguard axml app.apk"
+echo "  objection explore"

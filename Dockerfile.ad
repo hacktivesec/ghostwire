@@ -182,31 +182,8 @@ RUN set -eux; \
     done
 
 # ---- AD helpers ----
-RUN cat > /usr/local/bin/gw-ad-quick <<'SH'
-#!/usr/bin/env bash
-echo "[ad] Quick AD assessment:"
-echo "  nxc smb <target> -u '' -p '' --shares"
-echo "  nxc smb <target> -u user -p pass --shares"
-echo "  bloodhound-python -d domain -u user -p pass -ns <dc> -c All"
-echo "  kerbrute userenum -d domain --dc <dc> users.txt"
-echo "  GetNPUsers domain/ -dc-ip <dc> -no-pass -usersfile users.txt"
-echo "  GetUserSPNs domain/user:pass -dc-ip <dc>"
-echo "  responder -I eth0 -dwPv"
-echo "  mitm6 -d domain.local"
-echo "  certipy find -u user@domain -p pass -dc-ip <dc>"
-echo "  coercer scan -t <target> -u user -p pass -d domain"
-SH
-RUN chmod +x /usr/local/bin/gw-ad-quick
-
-RUN cat > /usr/local/bin/gw-cloud-audit <<'SH'
-#!/usr/bin/env bash
-echo "[cloud] Cloud audit patterns:"
-echo "AWS:    scoutsuite aws --access-keys-id <k> --secret-access-key <s>"
-echo "        pacu  /  aws sts get-caller-identity"
-echo "Azure:  scoutsuite azure --cli  /  az account list"
-echo "GCP:    scoutsuite gcp --user-account  /  gcloud projects list"
-SH
-RUN chmod +x /usr/local/bin/gw-cloud-audit
+COPY scripts/gw-ad-quick scripts/gw-cloud-audit /usr/local/bin/
+RUN chmod +x /usr/local/bin/gw-ad-quick /usr/local/bin/gw-cloud-audit
 
 COPY scripts/gw-gpu-check /usr/local/bin/gw-gpu-check
 RUN chmod +x /usr/local/bin/gw-gpu-check

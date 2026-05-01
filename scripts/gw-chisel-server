@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+PORT="${1:-8080}"
+KEY="${CHISEL_KEY:-}"
+args=(server -p "$PORT" --reverse)
+[ -n "$KEY" ] && args+=(--key "$KEY")
+echo "[pivot] chisel server :$PORT (reverse mode)"
+exec chisel "${args[@]}"

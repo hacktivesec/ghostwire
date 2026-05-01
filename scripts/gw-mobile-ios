@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+echo "[mobile] iOS IPA patterns:"
+echo "  unzip -q app.ipa -d ./extracted"
+echo "  file Payload/*.app/*"
+echo "  r2 Payload/*.app/<binary>"
+echo "  plistutil -i Payload/*.app/Info.plist"
+echo "  objection -g app explore"

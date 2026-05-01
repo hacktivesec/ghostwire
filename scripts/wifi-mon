@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IF="${1:-}"
+ACTION="${2:-on}"
+[ -n "$IF" ] || { echo "usage: wifi-mon <iface> [on|off]" >&2; exit 2; }
+if [ "$ACTION" = "on" ]; then
+  sudo rfkill unblock all || true
+  sudo ip link set "$IF" down
+  sudo iw dev "$IF" set type monitor
+  sudo ip link set "$IF" up
+  echo "[wifi] $IF -> monitor mode"
+else
+  sudo rfkill unblock all || true
+  sudo ip link set "$IF" down || true
+  sudo iw dev "$IF" set type managed || true
+  sudo ip link set "$IF" up || true
+  echo "[wifi] $IF -> managed mode"
+fi

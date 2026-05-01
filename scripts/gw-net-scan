@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+echo "[net] Quick network assessment patterns:"
+echo "  nmap -sC -sV -oA scan <target>"
+echo "  masscan -p1-1000 <target> --rate=1000"
+echo "  dnsx -d domain.com -a -aaaa -cname"
+echo "  httpx -l hosts.txt -status-code"
+echo "  ike-scan -A <target>"
+echo "  onesixtyone <target>"

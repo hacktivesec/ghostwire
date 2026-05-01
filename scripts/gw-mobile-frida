@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+echo "[mobile] Frida patterns:"
+echo "  frida-ps -U"
+echo "  frida -U -f com.app.name -l script.js"
+echo "  objection -g app explore"
+echo "  frida-trace -U -i open com.app"

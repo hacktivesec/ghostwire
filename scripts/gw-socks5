@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+PORT="${1:-1080}"
+USER_AUTH="${MICROSOCKS_USER:-}"
+PASS_AUTH="${MICROSOCKS_PASS:-}"
+args=(-p "$PORT" -i 0.0.0.0)
+[ -n "$USER_AUTH" ] && [ -n "$PASS_AUTH" ] && args+=(-u "$USER_AUTH" -P "$PASS_AUTH")
+echo "[pivot] microsocks :$PORT (auth=${USER_AUTH:+yes}${USER_AUTH:-no})"
+exec microsocks "${args[@]}"

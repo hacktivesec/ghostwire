@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+echo "[net] Tunneling & pivoting patterns:"
+echo "  chisel server -p 8080 --reverse"
+echo "  chisel client server:8080 R:1080:socks"
+echo "  sshuttle -r user@jumpbox 10.0.0.0/8"
+echo "  openvpn config.ovpn"
+echo "  wg-quick up wg0.conf"
+echo "  px nmap -sT target"

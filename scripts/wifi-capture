@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IF="${1:-}"; CH="${2:-}"; OUT="${3:-${ENGAGEMENT_DIR:-/shared}/scans/wifi}"
+[ -n "$IF" ] || { echo "usage: wifi-capture <mon-iface> [channel] [prefix]" >&2; exit 2; }
+mkdir -p "$(dirname "$OUT")"
+ts="$(date -u +%F_%H%M%S)"
+prefix="${OUT}_$ts"
+if [ -n "$CH" ]; then
+  exec sudo airodump-ng -w "$prefix" --output-format pcap --channel "$CH" "$IF"
+else
+  exec sudo airodump-ng -w "$prefix" --output-format pcap "$IF"
+fi

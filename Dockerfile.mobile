@@ -71,37 +71,8 @@ RUN set -eux; \
     done
 
 # ---- Mobile helpers ----
-RUN cat > /usr/local/bin/gw-mobile-apk <<'SH'
-#!/usr/bin/env bash
-echo "[mobile] APK analysis patterns:"
-echo "  jadx -d ./decompiled app.apk"
-echo "  apkid app.apk"
-echo "  aapt dump badging app.apk"
-echo "  mobsfscan ./decompiled"
-echo "  androguard axml app.apk"
-echo "  objection explore"
-SH
-RUN chmod +x /usr/local/bin/gw-mobile-apk
-RUN cat > /usr/local/bin/gw-mobile-ios <<'SH'
-#!/usr/bin/env bash
-echo "[mobile] iOS IPA patterns:"
-echo "  unzip -q app.ipa -d ./extracted"
-echo "  file Payload/*.app/*"
-echo "  r2 Payload/*.app/<binary>"
-echo "  plistutil -i Payload/*.app/Info.plist"
-echo "  objection -g app explore"
-SH
-RUN chmod +x /usr/local/bin/gw-mobile-ios
-RUN cat > /usr/local/bin/gw-mobile-frida <<'SH'
-#!/usr/bin/env bash
-echo "[mobile] Frida patterns:"
-echo "  frida-ps -U"
-echo "  frida -U -f com.app.name -l script.js"
-echo "  objection -g app explore"
-echo "  frida-trace -U -i open com.app"
-SH
-RUN chmod +x /usr/local/bin/gw-mobile-frida
-
+COPY scripts/gw-mobile-apk scripts/gw-mobile-ios scripts/gw-mobile-frida /usr/local/bin/
+RUN chmod +x /usr/local/bin/gw-mobile-apk /usr/local/bin/gw-mobile-ios /usr/local/bin/gw-mobile-frida
 COPY scripts/gw-usb-capture /usr/local/bin/gw-usb-capture
 RUN chmod +x /usr/local/bin/gw-usb-capture
 
