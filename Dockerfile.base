@@ -20,7 +20,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     GHOST_VENV=/opt/ghost-venv \
     SOCKS5_HOST=127.0.0.1 \
     SOCKS5_PORT=1080 \
-    PATH=/opt/ghost-venv/bin:/usr/local/bin:/usr/bin:/bin
+    PATH=/opt/ghost-venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # ---- Shared apt core ----
 RUN set -eux; \
@@ -36,7 +36,6 @@ RUN set -eux; \
       procps tini tar gnupg lsb-release apt-transport-https \
       netcat-openbsd dnsutils iputils-ping traceroute \
       iproute2 socat openssl whois; \
-    update-ca-certificates; \
     rm -rf /var/lib/apt/lists/*; \
     ln -sf /usr/bin/fdfind /usr/local/bin/fd; \
     ln -sf /usr/bin/batcat /usr/local/bin/bat
