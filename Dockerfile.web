@@ -2,7 +2,7 @@
 ARG GHOSTWIRE_BASE=ghostwire-base:dev
 
 # ---- Stage 0: compile Go tools ----
-FROM golang:1.24-bookworm AS gobuilder
+FROM golang:1.26-bookworm AS gobuilder
 ENV CGO_ENABLED=0 GOTOOLCHAIN=auto
 ARG TARGETOS TARGETARCH
 ENV GOOS=${TARGETOS} GOARCH=${TARGETARCH}
