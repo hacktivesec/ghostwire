@@ -71,7 +71,7 @@ jobs:
 
       - name: Build & push base
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.base
@@ -141,7 +141,7 @@ jobs:
       - name: Build & push ${{ matrix.variant }}
         id: build
         if: github.event_name != 'pull_request'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.${{ matrix.variant }}
