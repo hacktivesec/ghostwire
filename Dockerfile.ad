@@ -2,7 +2,7 @@
 ARG GHOSTWIRE_BASE=ghostwire-base:dev
 
 # ---- Stage 0: build bulk_extractor from source (pinned) ----
-FROM ubuntu:24.04 AS bulkbuilder
+FROM ubuntu:26.04 AS bulkbuilder
 ARG BULK_EXTRACTOR_REF=v2.1.1
 ENV DEBIAN_FRONTEND=noninteractive
 RUN set -eux; \
